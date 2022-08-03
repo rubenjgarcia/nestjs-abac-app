@@ -4,7 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import { User, UserDocument } from '../schemas/user.schema';
-import { CreateUserDto } from '../dtos/users';
+import { CreateUserDto, UpdateUserDto } from '../dtos/users';
 
 @Injectable()
 export class UserService {
@@ -43,5 +43,19 @@ export class UserService {
       .findOne({ email })
       .select({ password: false })
       .populate('policies');
+  }
+
+  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
+    await this.userModel
+      .updateOne(
+        { _id: new Types.ObjectId(id) },
+        { $set: { policies: updateUserDto.policies } },
+      )
+      .exec();
+    return this.findOne(id);
+  }
+
+  async remove(id: string) {
+    await this.userModel.findByIdAndRemove({ _id: id }).exec();
   }
 }

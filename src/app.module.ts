@@ -3,6 +3,6 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from './auth/auth.module';
 
 @Module({
-  imports: [MongooseModule.forRoot('mongodb://localhost/ars'), AuthModule],
+  imports: [MongooseModule.forRoot('mongodb://localhost/abac'), AuthModule],
 })
 export class AppModule {}

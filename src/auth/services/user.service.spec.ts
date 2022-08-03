@@ -150,4 +150,37 @@ describe('UserService', () => {
       expect(responseUsers[1].policies).toBeUndefined();
     });
   });
+
+  describe('update', () => {
+    it('should update user with policies', async () => {
+      const savedPolicy = await new policyModel(policy).save();
+      await new userModel({ ...user, policies: [savedPolicy] }).save();
+
+      const updatedUser = await userService.update(user._id.toString(), {
+        policies: [],
+      });
+      expect(updatedUser.password).toBeUndefined();
+      expect(updatedUser.policies).toBeUndefined();
+    });
+
+    it('should update user without policies', async () => {
+      const savedPolicy = await new policyModel(policy).save();
+      await new userModel(user).save();
+
+      const updatedUser = await userService.update(user._id.toString(), {
+        policies: [savedPolicy._id.toString()],
+      });
+      expect(updatedUser.password).toBeUndefined();
+      expect(updatedUser.policies).toBeUndefined();
+    });
+  });
+
+  describe('remove', () => {
+    it('should remove an user', async () => {
+      await new userModel(user).save();
+
+      await userService.remove(user._id.toString());
+      expect((await userModel.count()).valueOf()).toBe(0);
+    });
+  });
 });

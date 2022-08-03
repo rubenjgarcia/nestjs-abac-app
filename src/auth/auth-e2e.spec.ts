@@ -13,6 +13,8 @@ import {
   CreateUser,
   GetUser,
   ListUsers,
+  RemoveUser,
+  UpdateUser,
   UserScope,
 } from './actions/user.actions';
 import { Effect } from './schemas/policy.schema';
@@ -576,6 +578,508 @@ describe('Auth API', () => {
         expect(response.body.email).toBe('foo2');
         expect(response.body.password).toBeUndefined();
         expect(response.body.policies).toBeUndefined();
+      });
+    });
+
+    describe('UPDATE /auth/users/{id}', () => {
+      it("should fail to update user if user it's not logged in", async () => {
+        await request(app.getHttpServer())
+          .put('/auth/users/000000000001')
+          .send({ policies: [] })
+          .expect(401);
+      });
+
+      it('should fail to update user if user has no policies', async () => {
+        const accessToken = await createUserAndLogin({
+          email: 'foo',
+          password: 'bar',
+        });
+        await request(app.getHttpServer())
+          .put('/auth/users/000000000001')
+          .send({ policies: [] })
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(403);
+      });
+
+      it('should update users if user has wildcard resource in policy', async () => {
+        const accessToken = await createUserAndLogin(
+          {
+            email: 'foo',
+            password: 'bar',
+          },
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: [`${UserScope}:${UpdateUser}`],
+            resources: ['*'],
+          },
+        );
+        const savedPolicy = await policyService.create({
+          name: 'BarPolicy',
+          effect: Effect.Allow,
+          actions: ['Bar:Action'],
+          resources: ['*'],
+        });
+        const userResponse = await userService.create({
+          email: 'foo2',
+          password: 'bar',
+          policies: [savedPolicy._id.toString()],
+        });
+        const response = await request(app.getHttpServer())
+          .put(`/auth/users/${userResponse._id}`)
+          .send({ policies: [] })
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(200);
+        expect(response.body.email).toBe('foo2');
+        expect(response.body.password).toBeUndefined();
+        expect(response.body.policies).toBeUndefined();
+      });
+
+      it('should fail to update user if user has deny effect and wildcard resource in policy', async () => {
+        const accessToken = await createUserAndLogin(
+          {
+            email: 'foo',
+            password: 'bar',
+          },
+          {
+            name: 'FooPolicy',
+            effect: Effect.Deny,
+            actions: [`${UserScope}:${UpdateUser}`],
+            resources: ['*'],
+          },
+        );
+        await request(app.getHttpServer())
+          .put('/auth/users/000000000001')
+          .send({ policies: [] })
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(403);
+      });
+
+      it('should update user if user has allow effect and the resource is informed with the same id of the user that is trying to get', async () => {
+        const savedPolicy = await policyService.create({
+          name: 'BarPolicy',
+          effect: Effect.Allow,
+          actions: ['Bar:Action'],
+          resources: ['*'],
+        });
+        const userResponse = await userService.create({
+          email: 'foo2',
+          password: 'bar',
+          policies: [savedPolicy._id.toString()],
+        });
+        const accessToken = await createUserAndLogin(
+          {
+            email: 'foo',
+            password: 'bar',
+          },
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: [`${UserScope}:${UpdateUser}`],
+            resources: [userResponse._id.toString()],
+          },
+        );
+        const response = await request(app.getHttpServer())
+          .put(`/auth/users/${userResponse._id}`)
+          .send({ policies: [] })
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(200);
+        expect(response.body.email).toBe('foo2');
+        expect(response.body.password).toBeUndefined();
+        expect(response.body.policies).toBeUndefined();
+      });
+
+      it('should fail to update user if user has deny effect and no wildcard resource in policy', async () => {
+        const savedPolicy = await policyService.create({
+          name: 'BarPolicy',
+          effect: Effect.Allow,
+          actions: ['Bar:Action'],
+          resources: ['*'],
+        });
+        const userResponse = await userService.create({
+          email: 'foo2',
+          password: 'bar',
+          policies: [savedPolicy._id.toString()],
+        });
+        const accessToken = await createUserAndLogin(
+          {
+            email: 'foo',
+            password: 'bar',
+          },
+          {
+            name: 'FooPolicy',
+            effect: Effect.Deny,
+            actions: [`${UserScope}:${UpdateUser}`],
+            resources: [userResponse._id.toString()],
+          },
+        );
+        await request(app.getHttpServer())
+          .put(`/auth/users/${userResponse._id}`)
+          .send({ policies: [] })
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(403);
+      });
+
+      it('should fail to update user if user has allow effect and the resource is informed with the same id of the user that is trying to get and has deny effect with wildcard', async () => {
+        const savedPolicy = await policyService.create({
+          name: 'BarPolicy',
+          effect: Effect.Allow,
+          actions: ['Bar:Action'],
+          resources: ['*'],
+        });
+        const userResponse = await userService.create({
+          email: 'foo2',
+          password: 'bar',
+          policies: [savedPolicy._id.toString()],
+        });
+        const accessToken = await createUserAndLogin(
+          {
+            email: 'foo',
+            password: 'bar',
+          },
+          [
+            {
+              name: 'FooPolicy',
+              effect: Effect.Allow,
+              actions: [`${UserScope}:${UpdateUser}`],
+              resources: [userResponse._id.toString()],
+            },
+            {
+              name: 'BarPolicy',
+              effect: Effect.Deny,
+              actions: [`${UserScope}:${UpdateUser}`],
+              resources: ['*'],
+            },
+          ],
+        );
+        await request(app.getHttpServer())
+          .put(`/auth/users/${userResponse._id}`)
+          .send({ policies: [] })
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(403);
+      });
+
+      it('should fail to update user if user has allow effect with wildcard and has deny effect and the resource is informed with the same id of the user that is trying to get', async () => {
+        const savedPolicy = await policyService.create({
+          name: 'BarPolicy',
+          effect: Effect.Allow,
+          actions: ['Bar:Action'],
+          resources: ['*'],
+        });
+        const userResponse = await userService.create({
+          email: 'foo2',
+          password: 'bar',
+          policies: [savedPolicy._id.toString()],
+        });
+        const accessToken = await createUserAndLogin(
+          {
+            email: 'foo',
+            password: 'bar',
+          },
+          [
+            {
+              name: 'FooPolicy',
+              effect: Effect.Allow,
+              actions: [`${UserScope}:${UpdateUser}`],
+              resources: ['*'],
+            },
+            {
+              name: 'BarPolicy',
+              effect: Effect.Deny,
+              actions: [`${UserScope}:${UpdateUser}`],
+              resources: [userResponse._id.toString()],
+            },
+          ],
+        );
+        await request(app.getHttpServer())
+          .put(`/auth/users/${userResponse._id}`)
+          .send({ policies: [] })
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(403);
+      });
+
+      it('should update user if user has allow effect with wildcard and has deny effect and the resource is informed with different id of the user that is trying to get', async () => {
+        const savedPolicy = await policyService.create({
+          name: 'BarPolicy',
+          effect: Effect.Allow,
+          actions: ['Bar:Action'],
+          resources: ['*'],
+        });
+        const userResponse = await userService.create({
+          email: 'foo2',
+          password: 'bar',
+          policies: [savedPolicy._id.toString()],
+        });
+        const accessToken = await createUserAndLogin(
+          {
+            email: 'foo',
+            password: 'bar',
+          },
+          [
+            {
+              name: 'FooPolicy',
+              effect: Effect.Allow,
+              actions: [`${UserScope}:${UpdateUser}`],
+              resources: ['*'],
+            },
+            {
+              name: 'BarPolicy',
+              effect: Effect.Deny,
+              actions: [`${UserScope}:${UpdateUser}`],
+              resources: ['000000000000'],
+            },
+          ],
+        );
+        const response = await request(app.getHttpServer())
+          .put(`/auth/users/${userResponse._id}`)
+          .send({ policies: [] })
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(200);
+        expect(response.body.email).toBe('foo2');
+        expect(response.body.password).toBeUndefined();
+        expect(response.body.policies).toBeUndefined();
+      });
+    });
+
+    describe('DELETE /auth/users/{id}', () => {
+      it("should fail to remove user if user it's not logged in", async () => {
+        await request(app.getHttpServer())
+          .delete('/auth/users/000000000001')
+          .expect(401);
+      });
+
+      it('should fail to remove user if user has no policies', async () => {
+        const accessToken = await createUserAndLogin({
+          email: 'foo',
+          password: 'bar',
+        });
+        await request(app.getHttpServer())
+          .delete('/auth/users/000000000001')
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(403);
+      });
+
+      it('should remove users if user has wildcard resource in policy', async () => {
+        const accessToken = await createUserAndLogin(
+          {
+            email: 'foo',
+            password: 'bar',
+          },
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: [`${UserScope}:${RemoveUser}`],
+            resources: ['*'],
+          },
+        );
+        const savedPolicy = await policyService.create({
+          name: 'BarPolicy',
+          effect: Effect.Allow,
+          actions: ['Bar:Action'],
+          resources: ['*'],
+        });
+        const userResponse = await userService.create({
+          email: 'foo2',
+          password: 'bar',
+          policies: [savedPolicy._id.toString()],
+        });
+        await request(app.getHttpServer())
+          .delete(`/auth/users/${userResponse._id}`)
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(200);
+      });
+
+      it('should fail to remove user if user has deny effect and wildcard resource in policy', async () => {
+        const accessToken = await createUserAndLogin(
+          {
+            email: 'foo',
+            password: 'bar',
+          },
+          {
+            name: 'FooPolicy',
+            effect: Effect.Deny,
+            actions: [`${UserScope}:${RemoveUser}`],
+            resources: ['*'],
+          },
+        );
+        await request(app.getHttpServer())
+          .delete('/auth/users/000000000001')
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(403);
+      });
+
+      it('should remove user if user has allow effect and the resource is informed with the same id of the user that is trying to get', async () => {
+        const savedPolicy = await policyService.create({
+          name: 'BarPolicy',
+          effect: Effect.Allow,
+          actions: ['Bar:Action'],
+          resources: ['*'],
+        });
+        const userResponse = await userService.create({
+          email: 'foo2',
+          password: 'bar',
+          policies: [savedPolicy._id.toString()],
+        });
+        const accessToken = await createUserAndLogin(
+          {
+            email: 'foo',
+            password: 'bar',
+          },
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: [`${UserScope}:${RemoveUser}`],
+            resources: [userResponse._id.toString()],
+          },
+        );
+        await request(app.getHttpServer())
+          .delete(`/auth/users/${userResponse._id}`)
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(200);
+      });
+
+      it('should fail to remove user if user has deny effect and no wildcard resource in policy', async () => {
+        const savedPolicy = await policyService.create({
+          name: 'BarPolicy',
+          effect: Effect.Allow,
+          actions: ['Bar:Action'],
+          resources: ['*'],
+        });
+        const userResponse = await userService.create({
+          email: 'foo2',
+          password: 'bar',
+          policies: [savedPolicy._id.toString()],
+        });
+        const accessToken = await createUserAndLogin(
+          {
+            email: 'foo',
+            password: 'bar',
+          },
+          {
+            name: 'FooPolicy',
+            effect: Effect.Deny,
+            actions: [`${UserScope}:${RemoveUser}`],
+            resources: [userResponse._id.toString()],
+          },
+        );
+        await request(app.getHttpServer())
+          .delete(`/auth/users/${userResponse._id}`)
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(403);
+      });
+
+      it('should fail to remove user if user has allow effect and the resource is informed with the same id of the user that is trying to get and has deny effect with wildcard', async () => {
+        const savedPolicy = await policyService.create({
+          name: 'BarPolicy',
+          effect: Effect.Allow,
+          actions: ['Bar:Action'],
+          resources: ['*'],
+        });
+        const userResponse = await userService.create({
+          email: 'foo2',
+          password: 'bar',
+          policies: [savedPolicy._id.toString()],
+        });
+        const accessToken = await createUserAndLogin(
+          {
+            email: 'foo',
+            password: 'bar',
+          },
+          [
+            {
+              name: 'FooPolicy',
+              effect: Effect.Allow,
+              actions: [`${UserScope}:${RemoveUser}`],
+              resources: [userResponse._id.toString()],
+            },
+            {
+              name: 'BarPolicy',
+              effect: Effect.Deny,
+              actions: [`${UserScope}:${RemoveUser}`],
+              resources: ['*'],
+            },
+          ],
+        );
+        await request(app.getHttpServer())
+          .delete(`/auth/users/${userResponse._id}`)
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(403);
+      });
+
+      it('should fail to remove user if user has allow effect with wildcard and has deny effect and the resource is informed with the same id of the user that is trying to get', async () => {
+        const savedPolicy = await policyService.create({
+          name: 'BarPolicy',
+          effect: Effect.Allow,
+          actions: ['Bar:Action'],
+          resources: ['*'],
+        });
+        const userResponse = await userService.create({
+          email: 'foo2',
+          password: 'bar',
+          policies: [savedPolicy._id.toString()],
+        });
+        const accessToken = await createUserAndLogin(
+          {
+            email: 'foo',
+            password: 'bar',
+          },
+          [
+            {
+              name: 'FooPolicy',
+              effect: Effect.Allow,
+              actions: [`${UserScope}:${RemoveUser}`],
+              resources: ['*'],
+            },
+            {
+              name: 'BarPolicy',
+              effect: Effect.Deny,
+              actions: [`${UserScope}:${RemoveUser}`],
+              resources: [userResponse._id.toString()],
+            },
+          ],
+        );
+        await request(app.getHttpServer())
+          .delete(`/auth/users/${userResponse._id}`)
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(403);
+      });
+
+      it('should remove user if user has allow effect with wildcard and has deny effect and the resource is informed with different id of the user that is trying to get', async () => {
+        const savedPolicy = await policyService.create({
+          name: 'BarPolicy',
+          effect: Effect.Allow,
+          actions: ['Bar:Action'],
+          resources: ['*'],
+        });
+        const userResponse = await userService.create({
+          email: 'foo2',
+          password: 'bar',
+          policies: [savedPolicy._id.toString()],
+        });
+        const accessToken = await createUserAndLogin(
+          {
+            email: 'foo',
+            password: 'bar',
+          },
+          [
+            {
+              name: 'FooPolicy',
+              effect: Effect.Allow,
+              actions: [`${UserScope}:${RemoveUser}`],
+              resources: ['*'],
+            },
+            {
+              name: 'BarPolicy',
+              effect: Effect.Deny,
+              actions: [`${UserScope}:${RemoveUser}`],
+              resources: ['000000000000'],
+            },
+          ],
+        );
+        await request(app.getHttpServer())
+          .delete(`/auth/users/${userResponse._id}`)
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(200);
       });
     });
   });

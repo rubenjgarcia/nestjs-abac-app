@@ -45,6 +45,8 @@ describe('UserController', () => {
               },
             ]),
             create: jest.fn().mockResolvedValue(user),
+            update: jest.fn().mockResolvedValue(user),
+            remove: jest.fn(),
           },
         },
       ],
@@ -67,7 +69,7 @@ describe('UserController', () => {
 
   describe('findOne', () => {
     it('should return an user', async () => {
-      expect(userController.findOne('foo')).resolves.toEqual({
+      expect(userController.findOne('000000000000')).resolves.toEqual({
         _id: new Types.ObjectId('000000000000'),
         email: 'foo',
         password: 'bar',
@@ -93,6 +95,27 @@ describe('UserController', () => {
       ]);
 
       expect(userService.findAll).toHaveBeenCalled();
+    });
+  });
+
+  describe('update', () => {
+    it('should update an user', async () => {
+      expect(
+        userController.update('000000000000', { policies: [] }),
+      ).resolves.toEqual({
+        _id: new Types.ObjectId('000000000000'),
+        email: 'foo',
+        password: 'bar',
+      });
+
+      expect(userService.update).toHaveBeenCalled();
+    });
+  });
+
+  describe('remove', () => {
+    it('should remove an user', async () => {
+      userController.remove('000000000000');
+      expect(userService.remove).toHaveBeenCalled();
     });
   });
 });
