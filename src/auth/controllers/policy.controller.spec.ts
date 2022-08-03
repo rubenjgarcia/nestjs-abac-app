@@ -72,7 +72,7 @@ describe('PolicyController', () => {
 
   describe('create', () => {
     it('should create a policy', async () => {
-      expect(policyController.create(policyCreateDto)).resolves.toEqual({
+      await expect(policyController.create(policyCreateDto)).resolves.toEqual({
         _id: new Types.ObjectId('000000000000'),
         name: 'Foo',
         effect: Effect.Allow,
@@ -85,10 +85,12 @@ describe('PolicyController', () => {
 
   describe('findOne', () => {
     it('should return a policy', async () => {
-      expect(policyController.findOne('foo')).resolves.toEqual({
+      await expect(policyController.findOne('foo')).resolves.toEqual({
         _id: new Types.ObjectId('000000000000'),
-        email: 'foo',
-        password: 'bar',
+        name: 'Foo',
+        effect: Effect.Allow,
+        actions: ['Foo:Action'],
+        resources: ['*'],
       });
 
       expect(policyService.findOne).toHaveBeenCalled();
@@ -97,16 +99,20 @@ describe('PolicyController', () => {
 
   describe('findAll', () => {
     it('should return an array of policys', async () => {
-      expect(policyController.findAll()).resolves.toEqual([
+      await expect(policyController.findAll()).resolves.toEqual([
         {
           _id: new Types.ObjectId('000000000000'),
-          email: 'foo',
-          password: 'bar',
+          name: 'Foo',
+          effect: Effect.Allow,
+          actions: ['Foo:Action'],
+          resources: ['*'],
         },
         {
           _id: new Types.ObjectId('000000000001'),
-          email: 'foo2',
-          password: 'bar2',
+          name: 'Bar',
+          effect: Effect.Allow,
+          actions: ['Bar:Action'],
+          resources: ['*'],
         },
       ]);
 
@@ -116,7 +122,7 @@ describe('PolicyController', () => {
 
   describe('update', () => {
     it('should update a policy', async () => {
-      expect(
+      await expect(
         policyController.update('000000000000', {
           name: 'Bar',
           effect: Effect.Deny,

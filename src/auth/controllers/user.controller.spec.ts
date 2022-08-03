@@ -58,7 +58,7 @@ describe('UserController', () => {
 
   describe('create', () => {
     it('should create an user', async () => {
-      expect(userController.create(userCreateDto)).resolves.toEqual({
+      await expect(userController.create(userCreateDto)).resolves.toEqual({
         _id: new Types.ObjectId('000000000000'),
         email: 'foo',
         password: 'bar',
@@ -69,7 +69,7 @@ describe('UserController', () => {
 
   describe('findOne', () => {
     it('should return an user', async () => {
-      expect(userController.findOne('000000000000')).resolves.toEqual({
+      await expect(userController.findOne('000000000000')).resolves.toEqual({
         _id: new Types.ObjectId('000000000000'),
         email: 'foo',
         password: 'bar',
@@ -81,7 +81,7 @@ describe('UserController', () => {
 
   describe('findAll', () => {
     it('should return an array of users', async () => {
-      expect(userController.findAll()).resolves.toEqual([
+      await expect(userController.findAll()).resolves.toEqual([
         {
           _id: new Types.ObjectId('000000000000'),
           email: 'foo',
@@ -100,7 +100,7 @@ describe('UserController', () => {
 
   describe('update', () => {
     it('should update an user', async () => {
-      expect(
+      await expect(
         userController.update('000000000000', { policies: [] }),
       ).resolves.toEqual({
         _id: new Types.ObjectId('000000000000'),
