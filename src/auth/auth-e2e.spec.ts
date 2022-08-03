@@ -17,7 +17,6 @@ import {
   UpdateUser,
   UserScope,
 } from './actions/user.actions';
-import { Effect } from './schemas/policy.schema';
 import {
   CreatePolicy,
   GetPolicy,
@@ -26,6 +25,7 @@ import {
   RemovePolicy,
   UpdatePolicy,
 } from './actions/policy.actions';
+import { Effect } from './factories/casl-ability.factory';
 
 describe('Auth API', () => {
   let app: INestApplication;

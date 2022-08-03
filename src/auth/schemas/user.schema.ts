@@ -2,11 +2,12 @@ import * as mongoose from 'mongoose';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { Policy } from './policy.schema';
+import { WithPolicies } from '../factories/casl-ability.factory';
 
 export type UserDocument = User & Document;
 
 @Schema()
-export class User {
+export class User implements WithPolicies {
   _id: Types.ObjectId;
 
   @Prop({ required: true, unique: true })

@@ -14,9 +14,6 @@ You can crete your own modules following [the principles described in Nestjs](ht
 - Create the handler for that actions that te one you can find in [user.handler](src/auth/handlers/user.handler.ts)
 - Update your controller with the `@CheckPolicies` decorator to check your policies. You can find an example in the [user.controller](src/auth/controllers/user.controller.ts)
 
-## TODOs
-
-- [ ] Make the ABAC system agnostic to the database engine
 
 ## Installation
 

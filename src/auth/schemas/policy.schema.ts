@@ -1,15 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { AbilityPolicy, Effect } from '../factories/casl-ability.factory';
 
 export type PolicyDocument = Policy & Document;
 
-export enum Effect {
-  Allow = 'Allow',
-  Deny = 'Deny',
-}
-
 @Schema()
-export class Policy {
+export class Policy implements AbilityPolicy {
   _id: Types.ObjectId;
 
   @Prop({ required: true, unique: true })

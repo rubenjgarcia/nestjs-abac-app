@@ -3,7 +3,8 @@ import { getModelToken } from '@nestjs/mongoose';
 import { Connection, connect, Model, Types } from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { PolicyService } from './policy.service';
-import { Effect, Policy, PolicySchema } from '../schemas/policy.schema';
+import { Policy, PolicySchema } from '../schemas/policy.schema';
+import { Effect } from '../factories/casl-ability.factory';
 
 describe('PolicyService', () => {
   let policyService: PolicyService;

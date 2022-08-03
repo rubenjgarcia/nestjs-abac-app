@@ -1,18 +1,33 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Types } from 'mongoose';
 import { Ability, AbilityBuilder } from '@casl/ability';
-import { User } from '../schemas/user.schema';
-import { Effect } from '../schemas/policy.schema';
+
+export enum Effect {
+  Allow = 'Allow',
+  Deny = 'Deny',
+}
+export interface AbilityPolicy {
+  name: string;
+
+  effect: Effect;
+
+  actions: string[];
+
+  resources: string[];
+}
+
+export interface WithPolicies {
+  policies?: AbilityPolicy[];
+}
 
 @Injectable()
 export class CaslAbilityFactory {
   private readonly logger = new Logger(CaslAbilityFactory.name);
 
-  createForUser(user: User) {
-    const { can, cannot, build } = new AbilityBuilder(Ability);
+  createWithPolicies(withPolicies: WithPolicies) {
+    const { can: allow, cannot: deny, build } = new AbilityBuilder(Ability);
 
-    user.policies &&
-      user.policies.forEach((p) => {
+    withPolicies.policies &&
+      withPolicies.policies.forEach((p) => {
         p.actions.forEach((a) => {
           try {
             let subject;
@@ -48,11 +63,11 @@ export class CaslAbilityFactory {
             }
             const condition = p.resources.includes('*')
               ? undefined
-              : { _id: { $in: p.resources.map((r) => new Types.ObjectId(r)) } };
+              : { _id: { $in: p.resources } };
             if (p.effect === Effect.Allow) {
-              can(action, subject, condition);
+              allow(action, subject, condition);
             } else {
-              cannot(action, subject, condition);
+              deny(action, subject, condition);
             }
           } catch (e) {
             this.logger.error('Error creating policy', e.stack);

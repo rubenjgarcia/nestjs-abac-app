@@ -4,7 +4,8 @@ import { Connection, connect, Model, Types } from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 import { UserService } from './user.service';
 import { User, UserSchema } from '../schemas/user.schema';
-import { Effect, Policy, PolicySchema } from '../schemas/policy.schema';
+import { Policy, PolicySchema } from '../schemas/policy.schema';
+import { Effect } from '../factories/casl-ability.factory';
 
 describe('UserService', () => {
   let userService: UserService;

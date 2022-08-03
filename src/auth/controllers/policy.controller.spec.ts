@@ -2,8 +2,8 @@ import { Test } from '@nestjs/testing';
 import { Types } from 'mongoose';
 import { PolicyController } from './policy.controller';
 import { PolicyService } from '../services/policy.service';
-import { Effect } from '../schemas/policy.schema';
 import { CreatePolicyDto } from '../dtos/policies';
+import { Effect } from '../factories/casl-ability.factory';
 
 describe('PolicyController', () => {
   let policyController: PolicyController;
