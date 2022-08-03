@@ -98,4 +98,38 @@ describe('PolicyService', () => {
       expect(responsePolicies[1].resources).toEqual(policies[1].resources);
     });
   });
+
+  describe('update', () => {
+    it('should update policy', async () => {
+      const responsePolicy = await policyService.create({
+        name: 'Foo',
+        effect: Effect.Allow,
+        actions: ['Foo:Action'],
+        resources: ['*'],
+      });
+
+      const updatedPolicy = await policyService.update(
+        responsePolicy._id.toString(),
+        {
+          name: 'Bar',
+          effect: Effect.Deny,
+          actions: ['Bar:Action'],
+          resources: ['000000000000'],
+        },
+      );
+      expect(updatedPolicy.name).toBe('Bar');
+      expect(updatedPolicy.effect).toBe(Effect.Deny);
+      expect(updatedPolicy.actions).toEqual(['Bar:Action']);
+      expect(updatedPolicy.resources).toEqual(['000000000000']);
+    });
+  });
+
+  describe('remove', () => {
+    it('should remove a policy', async () => {
+      await new policyModel(policy).save();
+
+      await policyService.remove(policy._id.toString());
+      expect((await policyModel.count()).valueOf()).toBe(0);
+    });
+  });
 });

@@ -12,7 +12,7 @@ export enum Effect {
 export class Policy {
   _id: Types.ObjectId;
 
-  @Prop()
+  @Prop({ required: true, unique: true })
   name: string;
 
   @Prop({ required: true })

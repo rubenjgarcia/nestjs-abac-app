@@ -53,6 +53,14 @@ describe('PolicyController', () => {
               actions: ['Foo:Action'],
               resources: ['*'],
             }),
+            update: jest.fn().mockResolvedValue({
+              _id: new Types.ObjectId('000000000000'),
+              name: 'Bar',
+              effect: Effect.Deny,
+              actions: ['Bar:Action'],
+              resources: ['000000000000'],
+            }),
+            remove: jest.fn(),
           },
         },
       ],
@@ -103,6 +111,34 @@ describe('PolicyController', () => {
       ]);
 
       expect(policyService.findAll).toHaveBeenCalled();
+    });
+  });
+
+  describe('update', () => {
+    it('should update a policy', async () => {
+      expect(
+        policyController.update('000000000000', {
+          name: 'Bar',
+          effect: Effect.Deny,
+          actions: ['Bar:Action'],
+          resources: ['000000000000'],
+        }),
+      ).resolves.toEqual({
+        _id: new Types.ObjectId('000000000000'),
+        name: 'Bar',
+        effect: Effect.Deny,
+        actions: ['Bar:Action'],
+        resources: ['000000000000'],
+      });
+
+      expect(policyService.update).toHaveBeenCalled();
+    });
+  });
+
+  describe('remove', () => {
+    it('should remove a policy', async () => {
+      policyController.remove('000000000000');
+      expect(policyService.remove).toHaveBeenCalled();
     });
   });
 });

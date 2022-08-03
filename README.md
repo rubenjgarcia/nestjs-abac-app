@@ -16,8 +16,6 @@ You can crete your own modules following [the principles described in Nestjs](ht
 
 ## TODOs
 
-- [ ] Update policies
-- [ ] Delete policies
 - [ ] Make the ABAC system agnostic to the database engine
 
 ## Installation
