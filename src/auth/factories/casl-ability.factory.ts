@@ -15,8 +15,37 @@ export class CaslAbilityFactory {
       user.policies.forEach((p) => {
         p.actions.forEach((a) => {
           try {
-            const subject = a.split(':')[0];
-            const action = a.split(':')[1];
+            let subject;
+            let action;
+
+            if (a === '*') {
+              subject = 'all';
+              action = 'manage';
+            } else if (a.includes(':')) {
+              const split = a.split(':');
+              subject = split[0];
+              action = split[1];
+              if (subject === 'all') {
+                this.logger.error(
+                  "Error creating policy: 'all' is a reserved keyword",
+                );
+                return;
+              } else if (subject === '*') {
+                subject = 'all';
+              }
+
+              if (action === 'manage') {
+                this.logger.error(
+                  "Error creating policy: 'manage' is a reserved keyword",
+                );
+                return;
+              } else if (action === '*') {
+                action = 'manage';
+              }
+            } else {
+              this.logger.error('Error creating policy: Malfomed action');
+              return;
+            }
             const condition = p.resources.includes('*')
               ? undefined
               : { _id: { $in: p.resources.map((r) => new Types.ObjectId(r)) } };

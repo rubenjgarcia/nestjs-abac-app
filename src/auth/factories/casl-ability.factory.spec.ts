@@ -88,7 +88,6 @@ describe('CASL Ability', () => {
         ],
       };
       const abilities = caslAbilityFactory.createForUser(user);
-      console.log(abilities.rules);
       expect(abilities.can('Action', subject('Foo', {}))).toBe(true);
     });
 
@@ -442,8 +441,70 @@ describe('CASL Ability', () => {
     });
   });
 
+  describe('User with wildcard actions', () => {
+    it('should have ability when the user has wildcard in action policy', () => {
+      const user: User = {
+        _id: new Types.ObjectId('000000000000'),
+        email: 'foo',
+        password: 'bar',
+        policies: [
+          {
+            _id: new Types.ObjectId('000000000000'),
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: ['*'],
+            resources: ['*'],
+          },
+        ],
+      };
+      const abilities = caslAbilityFactory.createForUser(user);
+      expect(abilities.can('Action', subject('Foo', {}))).toBe(true);
+    });
+
+    it('should have ability when the user has wildcard in action policy for the action', () => {
+      const user: User = {
+        _id: new Types.ObjectId('000000000000'),
+        email: 'foo',
+        password: 'bar',
+        policies: [
+          {
+            _id: new Types.ObjectId('000000000000'),
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: ['Foo:*'],
+            resources: ['*'],
+          },
+        ],
+      };
+      const abilities = caslAbilityFactory.createForUser(user);
+      expect(abilities.can('Action', subject('Foo', {}))).toBe(true);
+      expect(abilities.can('Action', subject('Bar', {}))).toBe(false);
+    });
+
+    it('should have ability when the user has wildcard in action policy for the subject', () => {
+      const user: User = {
+        _id: new Types.ObjectId('000000000000'),
+        email: 'foo',
+        password: 'bar',
+        policies: [
+          {
+            _id: new Types.ObjectId('000000000000'),
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: ['*:Action'],
+            resources: ['*'],
+          },
+        ],
+      };
+      const abilities = caslAbilityFactory.createForUser(user);
+      expect(abilities.can('Action', subject('Foo', {}))).toBe(true);
+      expect(abilities.can('Action2', subject('Foo', {}))).toBe(false);
+      expect(abilities.can('Action', subject('Bar', {}))).toBe(true);
+    });
+  });
+
   describe('Malformed policies', () => {
-    it('should ignore a malformed policy', () => {
+    it('should ignore a malformed id from a policy', () => {
       const user: User = {
         _id: new Types.ObjectId('000000000000'),
         email: 'foo',
@@ -460,6 +521,82 @@ describe('CASL Ability', () => {
       };
 
       const abilities = caslAbilityFactory.createForUser(user);
+      expect(abilities.rules.length).toBe(0);
+    });
+
+    it('should ignore a malformed action in policy', () => {
+      const user: User = {
+        _id: new Types.ObjectId('000000000000'),
+        email: 'foo',
+        password: 'bar',
+        policies: [
+          {
+            _id: new Types.ObjectId('000000000000'),
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: ['FooAction'],
+            resources: ['000000000000'],
+          },
+        ],
+      };
+
+      const abilities = caslAbilityFactory.createForUser(user);
+      expect(abilities.rules.length).toBe(0);
+    });
+
+    it('should ignore policy with keywords in action', () => {
+      let user: User = {
+        _id: new Types.ObjectId('000000000000'),
+        email: 'foo',
+        password: 'bar',
+        policies: [
+          {
+            _id: new Types.ObjectId('000000000000'),
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: ['all:manage'],
+            resources: ['000000000000'],
+          },
+        ],
+      };
+
+      let abilities = caslAbilityFactory.createForUser(user);
+      expect(abilities.rules.length).toBe(0);
+
+      user = {
+        _id: new Types.ObjectId('000000000000'),
+        email: 'foo',
+        password: 'bar',
+        policies: [
+          {
+            _id: new Types.ObjectId('000000000000'),
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: ['Foo:manage'],
+            resources: ['000000000000'],
+          },
+        ],
+      };
+
+      abilities = caslAbilityFactory.createForUser(user);
+      expect(abilities.rules.length).toBe(0);
+
+      user = {
+        _id: new Types.ObjectId('000000000000'),
+        email: 'foo',
+        password: 'bar',
+        policies: [
+          {
+            _id: new Types.ObjectId('000000000000'),
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: ['all:Action'],
+            resources: ['000000000000'],
+          },
+        ],
+      };
+
+      abilities = caslAbilityFactory.createForUser(user);
       expect(abilities.rules.length).toBe(0);
     });
   });
