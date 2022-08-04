@@ -16,7 +16,7 @@ describe('UserService', () => {
 
   const user: User = {
     _id: new Types.ObjectId('000000000000'),
-    email: 'foo',
+    email: 'foo@example.com',
     password: 'bar',
   };
 
@@ -32,7 +32,7 @@ describe('UserService', () => {
     user,
     {
       _id: new Types.ObjectId('000000000001'),
-      email: 'foo2',
+      email: 'bar@example.com',
       password: 'bar2',
     },
   ];
@@ -70,25 +70,34 @@ describe('UserService', () => {
   describe('create', () => {
     it('should create an user and not return the password', async () => {
       const responseUser = await userService.create({
-        email: 'foo',
+        email: 'foo@example.com',
         password: 'bar',
       });
       expect(responseUser._id).toBeDefined();
-      expect(responseUser.email).toBe('foo');
+      expect(responseUser.email).toBe('foo@example.com');
       expect(responseUser.password).toBeUndefined();
     });
 
     it('should create an user and not return the password and return the policies', async () => {
       const savedPolicy = await new policyModel(policy).save();
       const responseUser = await userService.create({
-        email: 'foo',
+        email: 'foo@example.com',
         password: 'bar',
         policies: [savedPolicy.id],
       });
       expect(responseUser._id).toBeDefined();
-      expect(responseUser.email).toBe('foo');
+      expect(responseUser.email).toBe('foo@example.com');
       expect(responseUser.password).toBeUndefined();
       expect(responseUser.policies).toBeUndefined();
+    });
+
+    it('should fail to create an user if the email is not valid', async () => {
+      await expect(
+        userService.create({
+          email: 'foo',
+          password: 'bar',
+        }),
+      ).rejects.toThrow('email: Must be a valid email');
     });
   });
 
