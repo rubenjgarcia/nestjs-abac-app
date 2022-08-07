@@ -1,9 +1,18 @@
 import { Test } from '@nestjs/testing';
 import { Types } from 'mongoose';
+import * as mocks from 'node-mocks-http';
 import { PolicyController } from './policy.controller';
 import { PolicyService } from '../services/policy.service';
 import { CreatePolicyDto } from '../dtos/policies';
 import { Effect } from '../factories/casl-ability.factory';
+import {
+  CreatePolicy,
+  GetPolicy,
+  ListPolicies,
+  PolicyScope,
+  RemovePolicy,
+  UpdatePolicy,
+} from '../actions/policy.actions';
 
 describe('PolicyController', () => {
   let policyController: PolicyController;
@@ -72,20 +81,47 @@ describe('PolicyController', () => {
 
   describe('create', () => {
     it('should create a policy', async () => {
-      await expect(policyController.create(policyCreateDto)).resolves.toEqual({
+      const request = mocks.createRequest();
+      request.user = {
+        policies: [
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: [`${PolicyScope}:${CreatePolicy}`],
+            resources: ['*'],
+          },
+        ],
+      };
+      await expect(
+        policyController.create(policyCreateDto, request),
+      ).resolves.toEqual({
         _id: new Types.ObjectId('000000000000'),
         name: 'Foo',
         effect: Effect.Allow,
         actions: ['Foo:Action'],
         resources: ['*'],
       });
-      expect(policyService.create).toHaveBeenCalledWith(policyCreateDto);
+      expect(policyService.create).toHaveBeenCalledWith(
+        policyCreateDto,
+        request.user,
+      );
     });
   });
 
   describe('findOne', () => {
     it('should return a policy', async () => {
-      await expect(policyController.findOne('foo')).resolves.toEqual({
+      const request = mocks.createRequest();
+      request.user = {
+        policies: [
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: [`${PolicyScope}:${GetPolicy}`],
+            resources: ['*'],
+          },
+        ],
+      };
+      await expect(policyController.findOne('foo', request)).resolves.toEqual({
         _id: new Types.ObjectId('000000000000'),
         name: 'Foo',
         effect: Effect.Allow,
@@ -93,13 +129,24 @@ describe('PolicyController', () => {
         resources: ['*'],
       });
 
-      expect(policyService.findOne).toHaveBeenCalled();
+      expect(policyService.findOne).toHaveBeenCalledWith('foo', request.user);
     });
   });
 
   describe('findAll', () => {
     it('should return an array of policys', async () => {
-      await expect(policyController.findAll()).resolves.toEqual([
+      const request = mocks.createRequest();
+      request.user = {
+        policies: [
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: [`${PolicyScope}:${ListPolicies}`],
+            resources: ['*'],
+          },
+        ],
+      };
+      await expect(policyController.findAll(request)).resolves.toEqual([
         {
           _id: new Types.ObjectId('000000000000'),
           name: 'Foo',
@@ -116,19 +163,31 @@ describe('PolicyController', () => {
         },
       ]);
 
-      expect(policyService.findAll).toHaveBeenCalled();
+      expect(policyService.findAll).toHaveBeenCalledWith(request.user);
     });
   });
 
   describe('update', () => {
     it('should update a policy', async () => {
+      const request = mocks.createRequest();
+      request.user = {
+        policies: [
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: [`${PolicyScope}:${UpdatePolicy}`],
+            resources: ['*'],
+          },
+        ],
+      };
+      const updatePolicyDto = {
+        name: 'Bar',
+        effect: Effect.Deny,
+        actions: ['Bar:Action'],
+        resources: ['000000000000'],
+      };
       await expect(
-        policyController.update('000000000000', {
-          name: 'Bar',
-          effect: Effect.Deny,
-          actions: ['Bar:Action'],
-          resources: ['000000000000'],
-        }),
+        policyController.update('000000000000', updatePolicyDto, request),
       ).resolves.toEqual({
         _id: new Types.ObjectId('000000000000'),
         name: 'Bar',
@@ -137,14 +196,32 @@ describe('PolicyController', () => {
         resources: ['000000000000'],
       });
 
-      expect(policyService.update).toHaveBeenCalled();
+      expect(policyService.update).toHaveBeenCalledWith(
+        '000000000000',
+        updatePolicyDto,
+        request.user,
+      );
     });
   });
 
   describe('remove', () => {
     it('should remove a policy', async () => {
-      policyController.remove('000000000000');
-      expect(policyService.remove).toHaveBeenCalled();
+      const request = mocks.createRequest();
+      request.user = {
+        policies: [
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: [`${PolicyScope}:${RemovePolicy}`],
+            resources: ['*'],
+          },
+        ],
+      };
+      policyController.remove('000000000000', request);
+      expect(policyService.remove).toHaveBeenCalledWith(
+        '000000000000',
+        request.user,
+      );
     });
   });
 });

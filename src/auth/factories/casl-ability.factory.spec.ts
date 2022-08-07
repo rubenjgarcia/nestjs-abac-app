@@ -31,7 +31,7 @@ describe('CASL Ability', () => {
 
   describe('User with Allow effect policies', () => {
     it('should not have ability when the policy has another service in policy', () => {
-      const withPolicies = {
+      const withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -46,7 +46,7 @@ describe('CASL Ability', () => {
     });
 
     it('should not have ability when the policy has another action in policy', () => {
-      const withPolicies = {
+      const withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -61,7 +61,7 @@ describe('CASL Ability', () => {
     });
 
     it('should have ability when the policy has wildcard in resource', () => {
-      const withPolicies = {
+      const withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -75,8 +75,26 @@ describe('CASL Ability', () => {
       expect(abilities.can('Action', subject('Foo', {}))).toBe(true);
     });
 
+    it('should have ability when the policy has wildcard in the actions and wildcard in resource', () => {
+      const withPolicies: WithPolicies = {
+        policies: [
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: ['*'],
+            resources: ['*'],
+          },
+        ],
+      };
+      const abilities = caslAbilityFactory.createWithPolicies(withPolicies);
+      expect(abilities.can('Action', subject('Foo', {}))).toBe(true);
+      expect(abilities.can('Action', subject('Foo', { foo: 1 }))).toBe(true);
+      expect(abilities.can('Action2', subject('Bar', {}))).toBe(true);
+      expect(abilities.can('Action2', subject('Bar', { foo: 1 }))).toBe(true);
+    });
+
     it('should not have ability when the policy has resource informed', () => {
-      const withPolicies = {
+      const withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -91,7 +109,7 @@ describe('CASL Ability', () => {
     });
 
     it('should have ability when the policy has resource informed and the resource _id is the same', () => {
-      const withPolicies = {
+      const withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -107,7 +125,7 @@ describe('CASL Ability', () => {
     });
 
     it('should have ability when the policy has resource wildcard and the resource _id is informed', () => {
-      const withPolicies = {
+      const withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -123,7 +141,7 @@ describe('CASL Ability', () => {
     });
 
     it('should not have ability when the policy has resource informed and the resource _id is not the same', () => {
-      const withPolicies = {
+      const withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -141,7 +159,7 @@ describe('CASL Ability', () => {
 
   describe('User with Deny effect policies', () => {
     it('should not have ability when the policy has resource wildcard', () => {
-      const withPolicies = {
+      const withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -156,7 +174,7 @@ describe('CASL Ability', () => {
     });
 
     it('should not have ability when the policy has resource wildcard and the resource _id is informed', () => {
-      const withPolicies = {
+      const withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -172,7 +190,7 @@ describe('CASL Ability', () => {
     });
 
     it('should not have ability when the policy has resource wildcard and the resource _id is the same', () => {
-      const withPolicies = {
+      const withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -188,7 +206,7 @@ describe('CASL Ability', () => {
     });
 
     it('should not have ability when the policy has resource wildcard and the resource _id is different', () => {
-      const withPolicies = {
+      const withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -206,7 +224,7 @@ describe('CASL Ability', () => {
 
   describe('User with Allow and Deny effect policies', () => {
     it('should not have ability when the Allow policy has resource wildcard and Deny policy has resource wildcard', () => {
-      const withPolicies = {
+      const withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -227,7 +245,7 @@ describe('CASL Ability', () => {
     });
 
     it('should not have ability when the Allow policy has resource informed and Deny policy has resource informed', () => {
-      const withPolicies = {
+      const withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -248,7 +266,7 @@ describe('CASL Ability', () => {
     });
 
     it('should not have ability when the Allow and Deny policy has resource informed and the resource _id is the same', () => {
-      const withPolicies = {
+      const withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -270,7 +288,7 @@ describe('CASL Ability', () => {
     });
 
     it('should have ability when the Allow policy has one resource informed and Deny policy has other resource informed and the resource _id is the same that the Allow policy has', () => {
-      const withPolicies = {
+      const withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -292,7 +310,7 @@ describe('CASL Ability', () => {
     });
 
     it('should not have ability when the Allow policy has one resource informed and Deny policy has other resource informed and the resource _id is the same that the Deny policy has', () => {
-      const withPolicies = {
+      const withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -314,7 +332,7 @@ describe('CASL Ability', () => {
     });
 
     it('should have ability when the Allow policy has resource wildcard and Deny policy has resource informed and the resource _id is the different that the Deny policy has', () => {
-      const withPolicies = {
+      const withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -336,7 +354,7 @@ describe('CASL Ability', () => {
     });
 
     it('should not have ability when the Allow policy has resource wildcard and Deny policy has resource informed and the resource _id is the same that the Deny policy has', () => {
-      const withPolicies = {
+      const withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -360,7 +378,7 @@ describe('CASL Ability', () => {
 
   describe('User with Allow effect and wildcard actions', () => {
     it('should have ability when the policy has wildcard in action policy', () => {
-      const withPolicies = {
+      const withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -375,7 +393,7 @@ describe('CASL Ability', () => {
     });
 
     it('should have ability when the policy has wildcard in action policy for the action', () => {
-      const withPolicies = {
+      const withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -391,7 +409,7 @@ describe('CASL Ability', () => {
     });
 
     it('should have ability when the policy has wildcard in action policy for the subject', () => {
-      const withPolicies = {
+      const withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -410,7 +428,7 @@ describe('CASL Ability', () => {
 
   describe('User with Allow and Deny effect and wildcard actions', () => {
     it('should not have ability when has a policy with Allow in effect, wildcard in actions and wildcard in resources but has other policy with Deny in effect and wildcard in actions and wildcard in resources', () => {
-      const withPolicies = {
+      const withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -431,7 +449,7 @@ describe('CASL Ability', () => {
     });
 
     it('should not have ability when has a policy with Allow in effect, wildcard in actions and wildcard in resources but has other policy with Deny in effect and wildcard in resources', () => {
-      const withPolicies = {
+      const withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -452,7 +470,7 @@ describe('CASL Ability', () => {
     });
 
     it('should not have ability when has a policy with Allow in effect, wildcard in action of the subject and wildcard in resources but has other policy with Deny in effect, wildcard in action of the subject and wildcard in resources', () => {
-      const withPolicies = {
+      const withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -473,7 +491,7 @@ describe('CASL Ability', () => {
     });
 
     it('should not have ability when has a policy with Allow in effect, wildcard in action for the subject and wildcard in resources but has another policy with Deny in effect, wildcard in action for the subject and wildcard in resources', () => {
-      const withPolicies = {
+      const withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -498,7 +516,7 @@ describe('CASL Ability', () => {
 
   describe('Malformed policies', () => {
     it('should ignore a malformed action in policy', () => {
-      const withPolicies = {
+      const withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -555,6 +573,202 @@ describe('CASL Ability', () => {
 
       abilities = caslAbilityFactory.createWithPolicies(withPolicies);
       expect(abilities.rules.length).toBe(0);
+    });
+  });
+
+  describe('Conditions', () => {
+    it('should be capable of have conditions based on string fields', () => {
+      let withPolicies: WithPolicies = {
+        policies: [
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: ['*'],
+            resources: ['*'],
+            condition: { StringEquals: { foo: 'bar' } },
+          },
+        ],
+      };
+
+      let abilities = caslAbilityFactory.createWithPolicies(withPolicies);
+      expect(abilities.can('Action', subject('Foo', {}))).toBe(false);
+      expect(abilities.can('Action', subject('Foo', { foo: 'bar' }))).toBe(
+        true,
+      );
+      expect(abilities.can('Action', subject('Foo', { foo: 'barz' }))).toBe(
+        false,
+      );
+
+      withPolicies = {
+        policies: [
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: ['*'],
+            resources: ['*'],
+            condition: { StringNotEquals: { foo: 'bar' } },
+          },
+        ],
+      };
+
+      abilities = caslAbilityFactory.createWithPolicies(withPolicies);
+      expect(abilities.can('Action', subject('Foo', {}))).toBe(true);
+      expect(abilities.can('Action', subject('Foo', { foo: 'bar' }))).toBe(
+        false,
+      );
+      expect(abilities.can('Action', subject('Foo', { foo: 'barz' }))).toBe(
+        true,
+      );
+    });
+
+    it('should be capable of have conditions based on numeric fields', () => {
+      let withPolicies: WithPolicies = {
+        policies: [
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: ['*'],
+            resources: ['*'],
+            condition: { NumberEquals: { foo: 1 } },
+          },
+        ],
+      };
+
+      let abilities = caslAbilityFactory.createWithPolicies(withPolicies);
+      expect(abilities.can('Action', subject('Foo', {}))).toBe(false);
+      expect(abilities.can('Action', subject('Foo', { foo: 1 }))).toBe(true);
+      expect(abilities.can('Action', subject('Foo', { foo: 2 }))).toBe(false);
+
+      withPolicies = {
+        policies: [
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: ['*'],
+            resources: ['*'],
+            condition: { NumberNotEquals: { foo: 1 } },
+          },
+        ],
+      };
+
+      abilities = caslAbilityFactory.createWithPolicies(withPolicies);
+      expect(abilities.can('Action', subject('Foo', {}))).toBe(true);
+      expect(abilities.can('Action', subject('Foo', { foo: 1 }))).toBe(false);
+      expect(abilities.can('Action', subject('Foo', { foo: 2 }))).toBe(true);
+
+      withPolicies = {
+        policies: [
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: ['*'],
+            resources: ['*'],
+            condition: { NumberGreaterThan: { foo: 1 } },
+          },
+        ],
+      };
+
+      abilities = caslAbilityFactory.createWithPolicies(withPolicies);
+      expect(abilities.can('Action', subject('Foo', {}))).toBe(false);
+      expect(abilities.can('Action', subject('Foo', { foo: 0 }))).toBe(false);
+      expect(abilities.can('Action', subject('Foo', { foo: 1 }))).toBe(false);
+      expect(abilities.can('Action', subject('Foo', { foo: 2 }))).toBe(true);
+
+      withPolicies = {
+        policies: [
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: ['*'],
+            resources: ['*'],
+            condition: { NumberGreaterThanEquals: { foo: 1 } },
+          },
+        ],
+      };
+
+      abilities = caslAbilityFactory.createWithPolicies(withPolicies);
+      expect(abilities.can('Action', subject('Foo', {}))).toBe(false);
+      expect(abilities.can('Action', subject('Foo', { foo: 0 }))).toBe(false);
+      expect(abilities.can('Action', subject('Foo', { foo: 1 }))).toBe(true);
+      expect(abilities.can('Action', subject('Foo', { foo: 2 }))).toBe(true);
+
+      withPolicies = {
+        policies: [
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: ['*'],
+            resources: ['*'],
+            condition: { NumberLessThan: { foo: 1 } },
+          },
+        ],
+      };
+
+      abilities = caslAbilityFactory.createWithPolicies(withPolicies);
+      expect(abilities.can('Action', subject('Foo', {}))).toBe(false);
+      expect(abilities.can('Action', subject('Foo', { foo: 2 }))).toBe(false);
+      expect(abilities.can('Action', subject('Foo', { foo: 1 }))).toBe(false);
+      expect(abilities.can('Action', subject('Foo', { foo: 0 }))).toBe(true);
+
+      withPolicies = {
+        policies: [
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: ['*'],
+            resources: ['*'],
+            condition: { NumberLessThanEquals: { foo: 1 } },
+          },
+        ],
+      };
+
+      abilities = caslAbilityFactory.createWithPolicies(withPolicies);
+      expect(abilities.can('Action', subject('Foo', {}))).toBe(false);
+      expect(abilities.can('Action', subject('Foo', { foo: 2 }))).toBe(false);
+      expect(abilities.can('Action', subject('Foo', { foo: 1 }))).toBe(true);
+      expect(abilities.can('Action', subject('Foo', { foo: 0 }))).toBe(true);
+    });
+
+    it('should be capable of have conditions based on boolean fields', () => {
+      let withPolicies: WithPolicies = {
+        policies: [
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: ['*'],
+            resources: ['*'],
+            condition: { Bool: { foo: true } },
+          },
+        ],
+      };
+
+      let abilities = caslAbilityFactory.createWithPolicies(withPolicies);
+      expect(abilities.can('Action', subject('Foo', {}))).toBe(false);
+      expect(abilities.can('Action', subject('Foo', { foo: true }))).toBe(true);
+      expect(abilities.can('Action', subject('Foo', { foo: false }))).toBe(
+        false,
+      );
+
+      withPolicies = {
+        policies: [
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: ['*'],
+            resources: ['*'],
+            condition: { Bool: { foo: false } },
+          },
+        ],
+      };
+
+      abilities = caslAbilityFactory.createWithPolicies(withPolicies);
+      expect(abilities.can('Action', subject('Foo', {}))).toBe(false);
+      expect(abilities.can('Action', subject('Foo', { foo: true }))).toBe(
+        false,
+      );
+      expect(abilities.can('Action', subject('Foo', { foo: false }))).toBe(
+        true,
+      );
     });
   });
 });

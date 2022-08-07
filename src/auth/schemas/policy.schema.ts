@@ -1,6 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
-import { AbilityPolicy, Effect } from '../factories/casl-ability.factory';
+import { Document, Types, Schema as MongooseSchema } from 'mongoose';
+import {
+  AbilityPolicy,
+  Condition,
+  Effect,
+} from '../factories/casl-ability.factory';
 
 export type PolicyDocument = Policy & Document;
 
@@ -19,6 +23,9 @@ export class Policy implements AbilityPolicy {
 
   @Prop({ required: true })
   resources: string[];
+
+  @Prop({ type: MongooseSchema.Types.Mixed })
+  condition?: Condition;
 }
 
 export const PolicySchema = SchemaFactory.createForClass(Policy);

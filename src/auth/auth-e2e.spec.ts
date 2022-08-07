@@ -1,12 +1,14 @@
 import * as request from 'supertest';
+import * as bcrypt from 'bcrypt';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import { Connection, connect } from 'mongoose';
+import mongoose, { Connection, connect, Model } from 'mongoose';
+import { accessibleRecordsPlugin } from '@casl/mongoose';
+import { getModelToken } from '@nestjs/mongoose';
 import { Test } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth.module';
-import { UserService } from './services/user.service';
-import { PolicyService } from './services/policy.service';
 import { CreateUserDto } from './dtos/users';
 import { CreatePolicyDto } from './dtos/policies';
 import {
@@ -26,58 +28,81 @@ import {
   UpdatePolicy,
 } from './actions/policy.actions';
 import { Effect } from './factories/casl-ability.factory';
+import { User, UserSchema } from './schemas/user.schema';
+import { Policy, PolicySchema } from './schemas/policy.schema';
 
-describe('Auth API', () => {
+describe('Auth Module API', () => {
   let app: INestApplication;
-  let userService: UserService;
-  let policyService: PolicyService;
+  let userModel: Model<User>;
+  let policyModel: Model<Policy>;
   let mongod: MongoMemoryServer;
   let mongoConnection: Connection;
+
+  const createPolicy = async (policy: CreatePolicyDto): Promise<Policy> => {
+    return await new policyModel(policy).save();
+  };
+
+  const createUser = async (
+    user: CreateUserDto,
+    policies?: CreatePolicyDto | CreatePolicyDto[],
+  ): Promise<User> => {
+    const hash = await bcrypt.hash(user.password, 10);
+    if (policies !== undefined) {
+      const savedPolicies = await Promise.all(
+        [].concat(policies).map(async (p) => {
+          const savedPolicy = await createPolicy(p);
+          return savedPolicy._id.toString();
+        }),
+      );
+      return await new userModel({
+        ...user,
+        password: hash,
+        policies: savedPolicies,
+      }).save();
+    } else {
+      return await new userModel({ ...user, password: hash }).save();
+    }
+  };
 
   const createUserAndLogin = async (
     user: CreateUserDto,
     policies?: CreatePolicyDto | CreatePolicyDto[],
   ) => {
-    if (policies !== undefined) {
-      const savedPolicies = await Promise.all(
-        [].concat(policies).map(async (p) => {
-          const savedPolicy = await policyService.create(p);
-          return savedPolicy._id.toString();
-        }),
-      );
-      await userService.create({
-        ...user,
-        policies: savedPolicies,
-      });
-    } else {
-      await userService.create(user);
-    }
-
+    await createUser(user, policies);
     const response = await request(app.getHttpServer())
       .post('/auth/login')
-      .send(user);
+      .send({ email: user.email, password: user.password });
     return response.body.access_token;
   };
 
   beforeAll(async () => {
+    mongoose.plugin(accessibleRecordsPlugin);
     const module = await Test.createTestingModule({
       imports: [
         AuthModule,
+        ConfigModule.forRoot({ isGlobal: true }),
         MongooseModule.forRootAsync({
           useFactory: async () => {
             mongod = await MongoMemoryServer.create();
             const uri = await mongod.getUri();
             mongoConnection = (await connect(uri)).connection;
+            userModel = mongoConnection.model(User.name, UserSchema);
+            policyModel = mongoConnection.model(Policy.name, PolicySchema);
             return { uri };
           },
         }),
+      ],
+      providers: [
+        { provide: getModelToken(User.name), useValue: userModel },
+        {
+          provide: getModelToken(Policy.name),
+          useValue: policyModel,
+        },
       ],
     }).compile();
 
     app = module.createNestApplication();
     app.useGlobalPipes(new ValidationPipe());
-    userService = module.get<UserService>(UserService);
-    policyService = module.get<PolicyService>(PolicyService);
     await app.init();
   });
 
@@ -100,7 +125,7 @@ describe('Auth API', () => {
 
       it('should deny login if user is not in database', async () => {
         const user = { email: 'bar@example.com', password: 'bar' };
-        await userService.create(user);
+        await createUser(user);
         return request(app.getHttpServer())
           .post('/auth/login')
           .send({ email: 'foo@example.com', password: 'bar' })
@@ -109,7 +134,7 @@ describe('Auth API', () => {
 
       it('should deny login if password is wrong', async () => {
         const user = { email: 'foo@example.com', password: 'bar' };
-        await userService.create(user);
+        await createUser(user);
         return request(app.getHttpServer())
           .post('/auth/login')
           .send({ email: 'foo@example.com', password: 'baz' })
@@ -118,7 +143,7 @@ describe('Auth API', () => {
 
       it('should allow login if is in the database', async () => {
         const user = { email: 'foo@example.com', password: 'bar' };
-        await userService.create(user);
+        await createUser(user);
         const response = await request(app.getHttpServer())
           .post('/auth/login')
           .send(user)
@@ -255,17 +280,18 @@ describe('Auth API', () => {
             resources: ['*'],
           },
         );
-        const savedPolicy = await policyService.create({
-          name: 'BarPolicy',
-          effect: Effect.Allow,
-          actions: ['Bar:Action'],
-          resources: ['*'],
-        });
-        const userResponse = await userService.create({
-          email: 'bar@example.com',
-          password: 'bar',
-          policies: [savedPolicy._id.toString()],
-        });
+        const userResponse = await createUser(
+          {
+            email: 'bar@example.com',
+            password: 'bar',
+          },
+          {
+            name: 'BarPolicy',
+            effect: Effect.Allow,
+            actions: ['Bar:Action'],
+            resources: ['*'],
+          },
+        );
         const response = await request(app.getHttpServer())
           .get(`/auth/users/${userResponse._id}`)
           .set('Authorization', 'bearer ' + accessToken)
@@ -295,17 +321,18 @@ describe('Auth API', () => {
       });
 
       it('should get user if user has allow effect and the resource is informed with the same id of the user that is trying to get', async () => {
-        const savedPolicy = await policyService.create({
-          name: 'BarPolicy',
-          effect: Effect.Allow,
-          actions: ['Bar:Action'],
-          resources: ['*'],
-        });
-        const userResponse = await userService.create({
-          email: 'bar@example.com',
-          password: 'bar',
-          policies: [savedPolicy._id.toString()],
-        });
+        const userResponse = await createUser(
+          {
+            email: 'bar@example.com',
+            password: 'bar',
+          },
+          {
+            name: 'BarPolicy',
+            effect: Effect.Allow,
+            actions: ['Bar:Action'],
+            resources: ['*'],
+          },
+        );
         const accessToken = await createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -328,17 +355,18 @@ describe('Auth API', () => {
       });
 
       it('should fail to get user if user has deny effect and no wildcard resource in policy', async () => {
-        const savedPolicy = await policyService.create({
-          name: 'BarPolicy',
-          effect: Effect.Allow,
-          actions: ['Bar:Action'],
-          resources: ['*'],
-        });
-        const userResponse = await userService.create({
-          email: 'bar@example.com',
-          password: 'bar',
-          policies: [savedPolicy._id.toString()],
-        });
+        const userResponse = await createUser(
+          {
+            email: 'bar@example.com',
+            password: 'bar',
+          },
+          {
+            name: 'BarPolicy',
+            effect: Effect.Allow,
+            actions: ['Bar:Action'],
+            resources: ['*'],
+          },
+        );
         const accessToken = await createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -358,17 +386,18 @@ describe('Auth API', () => {
       });
 
       it('should fail to get user if user has allow effect and the resource is informed with the same id of the user that is trying to get and has deny effect with wildcard', async () => {
-        const savedPolicy = await policyService.create({
-          name: 'BarPolicy',
-          effect: Effect.Allow,
-          actions: ['Bar:Action'],
-          resources: ['*'],
-        });
-        const userResponse = await userService.create({
-          email: 'bar@example.com',
-          password: 'bar',
-          policies: [savedPolicy._id.toString()],
-        });
+        const userResponse = await createUser(
+          {
+            email: 'bar@example.com',
+            password: 'bar',
+          },
+          {
+            name: 'BarPolicy',
+            effect: Effect.Allow,
+            actions: ['Bar:Action'],
+            resources: ['*'],
+          },
+        );
         const accessToken = await createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -396,17 +425,18 @@ describe('Auth API', () => {
       });
 
       it('should fail to get user if user has allow effect with wildcard and has deny effect and the resource is informed with the same id of the user that is trying to get', async () => {
-        const savedPolicy = await policyService.create({
-          name: 'BarPolicy',
-          effect: Effect.Allow,
-          actions: ['Bar:Action'],
-          resources: ['*'],
-        });
-        const userResponse = await userService.create({
-          email: 'bar@example.com',
-          password: 'bar',
-          policies: [savedPolicy._id.toString()],
-        });
+        const userResponse = await createUser(
+          {
+            email: 'bar@example.com',
+            password: 'bar',
+          },
+          {
+            name: 'BarPolicy',
+            effect: Effect.Allow,
+            actions: ['Bar:Action'],
+            resources: ['*'],
+          },
+        );
         const accessToken = await createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -434,17 +464,18 @@ describe('Auth API', () => {
       });
 
       it('should get user if user has allow effect with wildcard and has deny effect and the resource is informed with different id of the user that is trying to get', async () => {
-        const savedPolicy = await policyService.create({
-          name: 'BarPolicy',
-          effect: Effect.Allow,
-          actions: ['Bar:Action'],
-          resources: ['*'],
-        });
-        const userResponse = await userService.create({
-          email: 'bar@example.com',
-          password: 'bar',
-          policies: [savedPolicy._id.toString()],
-        });
+        const userResponse = await createUser(
+          {
+            email: 'bar@example.com',
+            password: 'bar',
+          },
+          {
+            name: 'BarPolicy',
+            effect: Effect.Allow,
+            actions: ['Bar:Action'],
+            resources: ['*'],
+          },
+        );
         const accessToken = await createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -563,7 +594,7 @@ describe('Auth API', () => {
             resources: ['*'],
           },
         );
-        const savedPolicy = await policyService.create({
+        const savedPolicy = await createPolicy({
           name: 'BarPolicy',
           effect: Effect.Allow,
           actions: ['Bar:Action'],
@@ -673,13 +704,13 @@ describe('Auth API', () => {
             resources: ['*'],
           },
         );
-        const savedPolicy = await policyService.create({
+        const savedPolicy = await createPolicy({
           name: 'BarPolicy',
           effect: Effect.Allow,
           actions: ['Bar:Action'],
           resources: ['*'],
         });
-        const userResponse = await userService.create({
+        const userResponse = await createUser({
           email: 'bar@example.com',
           password: 'bar',
           policies: [savedPolicy._id.toString()],
@@ -715,17 +746,18 @@ describe('Auth API', () => {
       });
 
       it('should update user if user has allow effect and the resource is informed with the same id of the user that is trying to get', async () => {
-        const savedPolicy = await policyService.create({
-          name: 'BarPolicy',
-          effect: Effect.Allow,
-          actions: ['Bar:Action'],
-          resources: ['*'],
-        });
-        const userResponse = await userService.create({
-          email: 'bar@example.com',
-          password: 'bar',
-          policies: [savedPolicy._id.toString()],
-        });
+        const userResponse = await createUser(
+          {
+            email: 'bar@example.com',
+            password: 'bar',
+          },
+          {
+            name: 'BarPolicy',
+            effect: Effect.Allow,
+            actions: ['Bar:Action'],
+            resources: ['*'],
+          },
+        );
         const accessToken = await createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -749,17 +781,18 @@ describe('Auth API', () => {
       });
 
       it('should fail to update user if user has deny effect and no wildcard resource in policy', async () => {
-        const savedPolicy = await policyService.create({
-          name: 'BarPolicy',
-          effect: Effect.Allow,
-          actions: ['Bar:Action'],
-          resources: ['*'],
-        });
-        const userResponse = await userService.create({
-          email: 'bar@example.com',
-          password: 'bar',
-          policies: [savedPolicy._id.toString()],
-        });
+        const userResponse = await createUser(
+          {
+            email: 'bar@example.com',
+            password: 'bar',
+          },
+          {
+            name: 'BarPolicy',
+            effect: Effect.Allow,
+            actions: ['Bar:Action'],
+            resources: ['*'],
+          },
+        );
         const accessToken = await createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -780,17 +813,18 @@ describe('Auth API', () => {
       });
 
       it('should fail to update user if user has allow effect and the resource is informed with the same id of the user that is trying to get and has deny effect with wildcard', async () => {
-        const savedPolicy = await policyService.create({
-          name: 'BarPolicy',
-          effect: Effect.Allow,
-          actions: ['Bar:Action'],
-          resources: ['*'],
-        });
-        const userResponse = await userService.create({
-          email: 'bar@example.com',
-          password: 'bar',
-          policies: [savedPolicy._id.toString()],
-        });
+        const userResponse = await createUser(
+          {
+            email: 'bar@example.com',
+            password: 'bar',
+          },
+          {
+            name: 'BarPolicy',
+            effect: Effect.Allow,
+            actions: ['Bar:Action'],
+            resources: ['*'],
+          },
+        );
         const accessToken = await createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -819,17 +853,18 @@ describe('Auth API', () => {
       });
 
       it('should fail to update user if user has allow effect with wildcard and has deny effect and the resource is informed with the same id of the user that is trying to get', async () => {
-        const savedPolicy = await policyService.create({
-          name: 'BarPolicy',
-          effect: Effect.Allow,
-          actions: ['Bar:Action'],
-          resources: ['*'],
-        });
-        const userResponse = await userService.create({
-          email: 'bar@example.com',
-          password: 'bar',
-          policies: [savedPolicy._id.toString()],
-        });
+        const userResponse = await createUser(
+          {
+            email: 'bar@example.com',
+            password: 'bar',
+          },
+          {
+            name: 'BarPolicy',
+            effect: Effect.Allow,
+            actions: ['Bar:Action'],
+            resources: ['*'],
+          },
+        );
         const accessToken = await createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -858,17 +893,18 @@ describe('Auth API', () => {
       });
 
       it('should update user if user has allow effect with wildcard and has deny effect and the resource is informed with different id of the user that is trying to get', async () => {
-        const savedPolicy = await policyService.create({
-          name: 'BarPolicy',
-          effect: Effect.Allow,
-          actions: ['Bar:Action'],
-          resources: ['*'],
-        });
-        const userResponse = await userService.create({
-          email: 'bar@example.com',
-          password: 'bar',
-          policies: [savedPolicy._id.toString()],
-        });
+        const userResponse = await createUser(
+          {
+            email: 'bar@example.com',
+            password: 'bar',
+          },
+          {
+            name: 'BarPolicy',
+            effect: Effect.Allow,
+            actions: ['Bar:Action'],
+            resources: ['*'],
+          },
+        );
         const accessToken = await createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -931,17 +967,18 @@ describe('Auth API', () => {
             resources: ['*'],
           },
         );
-        const savedPolicy = await policyService.create({
-          name: 'BarPolicy',
-          effect: Effect.Allow,
-          actions: ['Bar:Action'],
-          resources: ['*'],
-        });
-        const userResponse = await userService.create({
-          email: 'bar@example.com',
-          password: 'bar',
-          policies: [savedPolicy._id.toString()],
-        });
+        const userResponse = await createUser(
+          {
+            email: 'bar@example.com',
+            password: 'bar',
+          },
+          {
+            name: 'BarPolicy',
+            effect: Effect.Allow,
+            actions: ['Bar:Action'],
+            resources: ['*'],
+          },
+        );
         await request(app.getHttpServer())
           .delete(`/auth/users/${userResponse._id}`)
           .set('Authorization', 'bearer ' + accessToken)
@@ -968,17 +1005,18 @@ describe('Auth API', () => {
       });
 
       it('should remove user if user has allow effect and the resource is informed with the same id of the user that is trying to get', async () => {
-        const savedPolicy = await policyService.create({
-          name: 'BarPolicy',
-          effect: Effect.Allow,
-          actions: ['Bar:Action'],
-          resources: ['*'],
-        });
-        const userResponse = await userService.create({
-          email: 'bar@example.com',
-          password: 'bar',
-          policies: [savedPolicy._id.toString()],
-        });
+        const userResponse = await createUser(
+          {
+            email: 'bar@example.com',
+            password: 'bar',
+          },
+          {
+            name: 'BarPolicy',
+            effect: Effect.Allow,
+            actions: ['Bar:Action'],
+            resources: ['*'],
+          },
+        );
         const accessToken = await createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -998,17 +1036,18 @@ describe('Auth API', () => {
       });
 
       it('should fail to remove user if user has deny effect and no wildcard resource in policy', async () => {
-        const savedPolicy = await policyService.create({
-          name: 'BarPolicy',
-          effect: Effect.Allow,
-          actions: ['Bar:Action'],
-          resources: ['*'],
-        });
-        const userResponse = await userService.create({
-          email: 'bar@example.com',
-          password: 'bar',
-          policies: [savedPolicy._id.toString()],
-        });
+        const userResponse = await createUser(
+          {
+            email: 'bar@example.com',
+            password: 'bar',
+          },
+          {
+            name: 'BarPolicy',
+            effect: Effect.Allow,
+            actions: ['Bar:Action'],
+            resources: ['*'],
+          },
+        );
         const accessToken = await createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -1028,17 +1067,18 @@ describe('Auth API', () => {
       });
 
       it('should fail to remove user if user has allow effect and the resource is informed with the same id of the user that is trying to get and has deny effect with wildcard', async () => {
-        const savedPolicy = await policyService.create({
-          name: 'BarPolicy',
-          effect: Effect.Allow,
-          actions: ['Bar:Action'],
-          resources: ['*'],
-        });
-        const userResponse = await userService.create({
-          email: 'bar@example.com',
-          password: 'bar',
-          policies: [savedPolicy._id.toString()],
-        });
+        const userResponse = await createUser(
+          {
+            email: 'bar@example.com',
+            password: 'bar',
+          },
+          {
+            name: 'BarPolicy',
+            effect: Effect.Allow,
+            actions: ['Bar:Action'],
+            resources: ['*'],
+          },
+        );
         const accessToken = await createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -1066,17 +1106,18 @@ describe('Auth API', () => {
       });
 
       it('should fail to remove user if user has allow effect with wildcard and has deny effect and the resource is informed with the same id of the user that is trying to get', async () => {
-        const savedPolicy = await policyService.create({
-          name: 'BarPolicy',
-          effect: Effect.Allow,
-          actions: ['Bar:Action'],
-          resources: ['*'],
-        });
-        const userResponse = await userService.create({
-          email: 'bar@example.com',
-          password: 'bar',
-          policies: [savedPolicy._id.toString()],
-        });
+        const userResponse = await createUser(
+          {
+            email: 'bar@example.com',
+            password: 'bar',
+          },
+          {
+            name: 'BarPolicy',
+            effect: Effect.Allow,
+            actions: ['Bar:Action'],
+            resources: ['*'],
+          },
+        );
         const accessToken = await createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -1104,17 +1145,18 @@ describe('Auth API', () => {
       });
 
       it('should remove user if user has allow effect with wildcard and has deny effect and the resource is informed with different id of the user that is trying to get', async () => {
-        const savedPolicy = await policyService.create({
-          name: 'BarPolicy',
-          effect: Effect.Allow,
-          actions: ['Bar:Action'],
-          resources: ['*'],
-        });
-        const userResponse = await userService.create({
-          email: 'bar@example.com',
-          password: 'bar',
-          policies: [savedPolicy._id.toString()],
-        });
+        const userResponse = await createUser(
+          {
+            email: 'bar@example.com',
+            password: 'bar',
+          },
+          {
+            name: 'BarPolicy',
+            effect: Effect.Allow,
+            actions: ['Bar:Action'],
+            resources: ['*'],
+          },
+        );
         const accessToken = await createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -1269,7 +1311,7 @@ describe('Auth API', () => {
             resources: ['*'],
           },
         );
-        const savedPolicy = await policyService.create({
+        const savedPolicy = await createPolicy({
           name: 'BarPolicy',
           effect: Effect.Allow,
           actions: ['Bar:Action'],
@@ -1305,7 +1347,7 @@ describe('Auth API', () => {
       });
 
       it('should get policy if user has allow effect and the resource is informed with the same id of the policy that is trying to get', async () => {
-        const savedPolicy = await policyService.create({
+        const savedPolicy = await createPolicy({
           name: 'BarPolicy',
           effect: Effect.Allow,
           actions: ['Bar:Action'],
@@ -1334,7 +1376,7 @@ describe('Auth API', () => {
       });
 
       it('should fail to get policy if user has deny effect and no wildcard resource in policy', async () => {
-        const savedPolicy = await policyService.create({
+        const savedPolicy = await createPolicy({
           name: 'BarPolicy',
           effect: Effect.Allow,
           actions: ['Bar:Action'],
@@ -1359,7 +1401,7 @@ describe('Auth API', () => {
       });
 
       it('should fail to get polcy if user has allow effect and the resource is informed with the same id of the polcy that is trying to get and has deny effect with wildcard', async () => {
-        const savedPolicy = await policyService.create({
+        const savedPolicy = await createPolicy({
           name: 'BarPolicy',
           effect: Effect.Allow,
           actions: ['Bar:Action'],
@@ -1392,7 +1434,7 @@ describe('Auth API', () => {
       });
 
       it('should fail to get policy if user has allow effect with wildcard and has deny effect and the resource is informed with the same id of the policy that is trying to get', async () => {
-        const savedPolicy = await policyService.create({
+        const savedPolicy = await createPolicy({
           name: 'BarPolicy',
           effect: Effect.Allow,
           actions: ['Bar:Action'],
@@ -1425,7 +1467,7 @@ describe('Auth API', () => {
       });
 
       it('should get policy if user has allow effect with wildcard and has deny effect and the resource is informed with different id of the policy that is trying to get', async () => {
-        const savedPolicy = await policyService.create({
+        const savedPolicy = await createPolicy({
           name: 'BarPolicy',
           effect: Effect.Allow,
           actions: ['Bar:Action'],
@@ -1756,7 +1798,7 @@ describe('Auth API', () => {
             resources: ['*'],
           },
         );
-        const savedPolicy = await policyService.create({
+        const savedPolicy = await createPolicy({
           name: 'BarPolicy',
           effect: Effect.Allow,
           actions: ['Bar:Action'],
@@ -1804,7 +1846,7 @@ describe('Auth API', () => {
       });
 
       it('should update policy if user has allow effect and the resource is informed with the same id of the policy that is trying to get', async () => {
-        const savedPolicy = await policyService.create({
+        const savedPolicy = await createPolicy({
           name: 'BarPolicy',
           effect: Effect.Allow,
           actions: ['Bar:Action'],
@@ -1839,7 +1881,7 @@ describe('Auth API', () => {
       });
 
       it('should fail to update policy if user has deny effect and no wildcard resource in policy', async () => {
-        const savedPolicy = await policyService.create({
+        const savedPolicy = await createPolicy({
           name: 'BarPolicy',
           effect: Effect.Allow,
           actions: ['Bar:Action'],
@@ -1870,7 +1912,7 @@ describe('Auth API', () => {
       });
 
       it('should fail to update polcy if user has allow effect and the resource is informed with the same id of the polcy that is trying to get and has deny effect with wildcard', async () => {
-        const savedPolicy = await policyService.create({
+        const savedPolicy = await createPolicy({
           name: 'BarPolicy',
           effect: Effect.Allow,
           actions: ['Bar:Action'],
@@ -1909,7 +1951,7 @@ describe('Auth API', () => {
       });
 
       it('should fail to update policy if user has allow effect with wildcard and has deny effect and the resource is informed with the same id of the policy that is trying to get', async () => {
-        const savedPolicy = await policyService.create({
+        const savedPolicy = await createPolicy({
           name: 'BarPolicy',
           effect: Effect.Allow,
           actions: ['Bar:Action'],
@@ -1948,7 +1990,7 @@ describe('Auth API', () => {
       });
 
       it('should update policy if user has allow effect with wildcard and has deny effect and the resource is informed with different id of the policy that is trying to get', async () => {
-        const savedPolicy = await policyService.create({
+        const savedPolicy = await createPolicy({
           name: 'BarPolicy',
           effect: Effect.Allow,
           actions: ['Bar:Action'],
@@ -1991,7 +2033,7 @@ describe('Auth API', () => {
       });
 
       it('should fail to update policy if the fields are not correct', async () => {
-        const savedPolicy = await policyService.create({
+        const savedPolicy = await createPolicy({
           name: 'BarPolicy',
           effect: Effect.Allow,
           actions: ['Bar:Action'],
@@ -2194,7 +2236,7 @@ describe('Auth API', () => {
             resources: ['*'],
           },
         );
-        const savedPolicy = await policyService.create({
+        const savedPolicy = await createPolicy({
           name: 'BarPolicy',
           effect: Effect.Allow,
           actions: ['Bar:Action'],
@@ -2226,7 +2268,7 @@ describe('Auth API', () => {
       });
 
       it('should remove policy if user has allow effect and the resource is informed with the same id of the policy that is trying to get', async () => {
-        const savedPolicy = await policyService.create({
+        const savedPolicy = await createPolicy({
           name: 'BarPolicy',
           effect: Effect.Allow,
           actions: ['Bar:Action'],
@@ -2251,7 +2293,7 @@ describe('Auth API', () => {
       });
 
       it('should fail to remove policy if user has deny effect and no wildcard resource in policy', async () => {
-        const savedPolicy = await policyService.create({
+        const savedPolicy = await createPolicy({
           name: 'BarPolicy',
           effect: Effect.Allow,
           actions: ['Bar:Action'],
@@ -2276,7 +2318,7 @@ describe('Auth API', () => {
       });
 
       it('should fail to remove polcy if user has allow effect and the resource is informed with the same id of the polcy that is trying to get and has deny effect with wildcard', async () => {
-        const savedPolicy = await policyService.create({
+        const savedPolicy = await createPolicy({
           name: 'BarPolicy',
           effect: Effect.Allow,
           actions: ['Bar:Action'],
@@ -2309,7 +2351,7 @@ describe('Auth API', () => {
       });
 
       it('should fail to remove policy if user has allow effect with wildcard and has deny effect and the resource is informed with the same id of the policy that is trying to get', async () => {
-        const savedPolicy = await policyService.create({
+        const savedPolicy = await createPolicy({
           name: 'BarPolicy',
           effect: Effect.Allow,
           actions: ['Bar:Action'],
@@ -2342,7 +2384,7 @@ describe('Auth API', () => {
       });
 
       it('should remove policy if user has allow effect with wildcard and has deny effect and the resource is informed with different id of the policy that is trying to get', async () => {
-        const savedPolicy = await policyService.create({
+        const savedPolicy = await createPolicy({
           name: 'BarPolicy',
           effect: Effect.Allow,
           actions: ['Bar:Action'],

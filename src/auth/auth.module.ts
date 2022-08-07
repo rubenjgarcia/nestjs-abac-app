@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import { Policy, PolicySchema } from './schemas/policy.schema';
@@ -20,7 +21,6 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
-import { jwtConstants } from './auth.constants';
 import { CaslAbilityFactory } from './factories/casl-ability.factory';
 import { PoliciesGuard } from './guards/policies.guard';
 
@@ -31,9 +31,13 @@ import { PoliciesGuard } from './guards/policies.guard';
       { name: User.name, schema: UserSchema },
     ]),
     PassportModule,
-    JwtModule.register({
-      secret: jwtConstants.secret,
-      signOptions: { expiresIn: '7d' },
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        secret: config.get<string>('JWT_SECRET'),
+        signOptions: { expiresIn: '7d' },
+      }),
     }),
   ],
   controllers: [PolicyController, UserController, AuthController],
@@ -46,6 +50,7 @@ import { PoliciesGuard } from './guards/policies.guard';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PoliciesGuard },
     CaslAbilityFactory,
+    ConfigService,
   ],
   exports: [CaslAbilityFactory],
 })

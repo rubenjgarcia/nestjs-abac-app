@@ -7,7 +7,9 @@ import {
   Param,
   Post,
   Put,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { UserService } from '../services/user.service';
 import { User } from '../schemas/user.schema';
 import { CreateUserDto, UpdateUserDto } from '../dtos/users';
@@ -28,20 +30,26 @@ export class UserController {
 
   @Post()
   @CheckPolicies(new CreateUsersPolicyHandler())
-  async create(@Body() createUserDto: CreateUserDto): Promise<User> {
-    return await this.userService.create(createUserDto);
+  async create(
+    @Body() createUserDto: CreateUserDto,
+    @Req() request: Request,
+  ): Promise<User> {
+    return await this.userService.create(createUserDto, request.user);
   }
 
   @Get()
   @CheckPolicies(new ListUsersPolicyHandler())
-  async findAll(): Promise<User[]> {
-    return this.userService.findAll();
+  async findAll(@Req() request: Request): Promise<User[]> {
+    return this.userService.findAll(request.user);
   }
 
   @Get(':id')
   @CheckPolicies(new GetUserPolicyHandler('id'))
-  async findOne(@Param('id') id: string): Promise<User> {
-    return this.userService.findOne(id);
+  async findOne(
+    @Param('id') id: string,
+    @Req() request: Request,
+  ): Promise<User> {
+    return this.userService.findOne(id, request.user);
   }
 
   @Put(':id')
@@ -49,13 +57,14 @@ export class UserController {
   async update(
     @Param('id') id: string,
     @Body() updateUserDto: UpdateUserDto,
+    @Req() request: Request,
   ): Promise<User> {
-    return this.userService.update(id, updateUserDto);
+    return this.userService.update(id, updateUserDto, request.user);
   }
 
   @Delete(':id')
   @CheckPolicies(new RemoveUserPolicyHandler('id'))
-  remove(@Param('id') id: string) {
-    return this.userService.remove(id);
+  remove(@Param('id') id: string, @Req() request: Request) {
+    return this.userService.remove(id, request.user);
   }
 }

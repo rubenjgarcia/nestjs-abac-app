@@ -7,7 +7,9 @@ import {
   Param,
   Post,
   Put,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { PolicyService } from '../services/policy.service';
 import { Policy } from '../schemas/policy.schema';
 import { CreatePolicyDto, UpdatePolicyDto } from '../dtos/policies';
@@ -28,20 +30,26 @@ export class PolicyController {
 
   @Post()
   @CheckPolicies(new CreatePolicysPolicyHandler())
-  async create(@Body() createPolicyDto: CreatePolicyDto): Promise<Policy> {
-    return await this.policyService.create(createPolicyDto);
+  async create(
+    @Body() createPolicyDto: CreatePolicyDto,
+    @Req() request: Request,
+  ): Promise<Policy> {
+    return await this.policyService.create(createPolicyDto, request.user);
   }
 
   @Get()
   @CheckPolicies(new ListPolicysPolicyHandler())
-  async findAll(): Promise<Policy[]> {
-    return this.policyService.findAll();
+  async findAll(@Req() request: Request): Promise<Policy[]> {
+    return this.policyService.findAll(request.user);
   }
 
   @Get(':id')
   @CheckPolicies(new GetPolicyPolicyHandler('id'))
-  async findOne(@Param('id') id: string): Promise<Policy> {
-    return this.policyService.findOne(id);
+  async findOne(
+    @Param('id') id: string,
+    @Req() request: Request,
+  ): Promise<Policy> {
+    return this.policyService.findOne(id, request.user);
   }
 
   @Put(':id')
@@ -49,13 +57,14 @@ export class PolicyController {
   async update(
     @Param('id') id: string,
     @Body() updatePolicyDto: UpdatePolicyDto,
+    @Req() request: Request,
   ): Promise<Policy> {
-    return this.policyService.update(id, updatePolicyDto);
+    return this.policyService.update(id, updatePolicyDto, request.user);
   }
 
   @Delete(':id')
   @CheckPolicies(new RemovePolicyPolicyHandler('id'))
-  remove(@Param('id') id: string) {
-    return this.policyService.remove(id);
+  remove(@Param('id') id: string, @Req() request: Request) {
+    return this.policyService.remove(id, request.user);
   }
 }

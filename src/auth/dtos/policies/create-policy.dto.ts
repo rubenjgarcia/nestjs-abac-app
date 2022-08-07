@@ -1,5 +1,5 @@
 import { IsNotEmpty, ArrayNotEmpty, IsEnum } from 'class-validator';
-import { Effect } from '../../factories/casl-ability.factory';
+import { Condition, Effect } from '../../factories/casl-ability.factory';
 
 export class CreatePolicyDto {
   @IsNotEmpty()
@@ -15,4 +15,6 @@ export class CreatePolicyDto {
   @ArrayNotEmpty()
   @IsNotEmpty({ each: true })
   readonly resources: string[];
+
+  readonly condition?: Condition;
 }
