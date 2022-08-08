@@ -22,23 +22,41 @@ export type NumberOperator =
   | 'NumberGreaterThanEquals';
 type BooleanOperator = 'Bool';
 
-type Operator = StringOperator | NumberOperator | BooleanOperator;
-
-type OneOperatorKey<K extends Operator, V = any> = {
-  [P in K]: Record<P, V> & Partial<Record<Exclude<K, P>, never>> extends infer O
-    ? { [Q in keyof O]: O[Q] }
-    : never;
-}[K];
-
 type OneStringKey<K extends string, V = any> = {
   [P in K]: Record<P, V> & Partial<Record<Exclude<K, P>, never>> extends infer O
     ? { [Q in keyof O]: O[Q] }
     : never;
 }[K];
 
-type StringSingleValue = OneStringKey<string, string | number | boolean>;
+type OneStringOperatorKey<
+  K extends StringOperator,
+  V = OneStringKey<string, any>,
+> = {
+  [P in K]: Record<P, V> & Partial<Record<Exclude<K, P>, never>> extends infer O
+    ? { [Q in keyof O]: O[Q] }
+    : never;
+}[K];
 
-export type Condition = OneOperatorKey<Operator, StringSingleValue>;
+type OneNumberOperatorKey<K extends NumberOperator, V = number> = {
+  [P in K]: Record<P, V> & Partial<Record<Exclude<K, P>, never>> extends infer O
+    ? { [Q in keyof O]: O[Q] }
+    : never;
+}[K];
+
+type OneBooleanOperatorKey<K extends BooleanOperator, V = boolean> = {
+  [P in K]: Record<P, V> & Partial<Record<Exclude<K, P>, never>> extends infer O
+    ? { [Q in keyof O]: O[Q] }
+    : never;
+}[K];
+
+type StringSingleValue = OneStringKey<string, string>;
+type NumberSingleValue = OneStringKey<string, number>;
+type BooleanSingleValue = OneStringKey<string, boolean>;
+
+export type Condition =
+  | OneStringOperatorKey<StringOperator, StringSingleValue>
+  | OneNumberOperatorKey<NumberOperator, NumberSingleValue>
+  | OneBooleanOperatorKey<BooleanOperator, BooleanSingleValue>;
 
 export interface AbilityPolicy {
   name: string;
@@ -55,6 +73,65 @@ export interface AbilityPolicy {
 export interface WithPolicies {
   policies?: AbilityPolicy[];
 }
+
+type PolicyConditionType =
+  | 'Equals'
+  | 'NotEquals'
+  | 'LessThan'
+  | 'LessThanEquals'
+  | 'GreaterThan'
+  | 'GreaterThanEquals';
+
+const createPolicyCondition = (
+  type: PolicyConditionType,
+  field: string,
+  value: string | number | boolean,
+) => {
+  switch (type) {
+    case 'Equals':
+      return {
+        [field]: {
+          $eq: value,
+        },
+      };
+    case 'NotEquals':
+      return {
+        [field]: {
+          $ne: value,
+        },
+      };
+    case 'LessThan':
+      return {
+        $and: [
+          {
+            [field]: { $exists: true },
+          },
+          { [field]: { $lt: value } },
+        ],
+      };
+    case 'LessThanEquals':
+      return {
+        $and: [
+          {
+            [field]: { $exists: true },
+          },
+          { [field]: { $lte: value } },
+        ],
+      };
+    case 'GreaterThan':
+      return {
+        [field]: {
+          $gt: value,
+        },
+      };
+    case 'GreaterThanEquals':
+      return {
+        [field]: {
+          $gte: value,
+        },
+      };
+  }
+};
 
 @Injectable()
 export class CaslAbilityFactory {
@@ -99,77 +176,62 @@ export class CaslAbilityFactory {
               return;
             }
 
-            let condition: MongoQuery = p.resources.includes('*')
+            let conditions: MongoQuery = p.resources.includes('*')
               ? undefined
               : { _id: { $in: p.resources } };
             if (p.condition) {
-              const operator = Object.keys(p.condition)[0] as Operator;
-              const field = Object.keys(p.condition[operator])[0];
-              const value = Object.values(p.condition[operator])[0];
+              const operator = Object.keys(p.condition)[0];
+              let condition;
               let policyCondition;
 
               switch (operator) {
                 case 'StringEquals':
-                case 'NumberEquals':
-                case 'Bool':
-                  policyCondition = {
-                    [field]: {
-                      $eq: value,
-                    },
-                  };
-                  break;
                 case 'StringNotEquals':
+                  condition = p.condition as OneStringOperatorKey<
+                    StringOperator,
+                    StringSingleValue
+                  >;
+                  policyCondition = createPolicyCondition(
+                    operator.replace('String', '') as PolicyConditionType,
+                    Object.keys(condition[operator])[0],
+                    Object.values(condition[operator])[0],
+                  );
+                  break;
+                case 'NumberEquals':
                 case 'NumberNotEquals':
-                  policyCondition = {
-                    [field]: {
-                      $ne: value,
-                    },
-                  };
-                  break;
                 case 'NumberLessThan':
-                  policyCondition = {
-                    $and: [
-                      {
-                        [field]: { $exists: true },
-                      },
-                      { [field]: { $lt: value } },
-                    ],
-                  };
-                  break;
                 case 'NumberLessThanEquals':
-                  policyCondition = {
-                    $and: [
-                      {
-                        [field]: { $exists: true },
-                      },
-                      { [field]: { $lte: value } },
-                    ],
-                  };
-                  break;
                 case 'NumberGreaterThan':
-                  policyCondition = {
-                    [field]: {
-                      $gt: value,
-                    },
-                  };
-                  break;
                 case 'NumberGreaterThanEquals':
-                  policyCondition = {
-                    [field]: {
-                      $gte: value,
-                    },
-                  };
+                  condition = p.condition as OneNumberOperatorKey<
+                    NumberOperator,
+                    NumberSingleValue
+                  >;
+                  policyCondition = createPolicyCondition(
+                    operator.replace('Number', '') as PolicyConditionType,
+                    Object.keys(condition[operator])[0],
+                    Object.values(condition[operator])[0],
+                  );
                   break;
-                default:
-                  policyCondition = {};
+                case 'Bool':
+                  condition = p.condition as OneBooleanOperatorKey<
+                    BooleanOperator,
+                    BooleanSingleValue
+                  >;
+                  policyCondition = createPolicyCondition(
+                    'Equals',
+                    Object.keys(condition[operator])[0],
+                    Object.values(condition[operator])[0],
+                  );
+                  break;
               }
-              condition = { ...condition, ...policyCondition };
+              conditions = { ...conditions, ...policyCondition };
             }
 
             if (p.effect === Effect.Allow) {
-              allow(action, subject, condition);
+              allow(action, subject, conditions);
             } else {
-              deny(action, subject, condition);
+              deny(action, subject, conditions);
             }
           } catch (e) {
             this.logger.error('Error creating policy', e.stack);
