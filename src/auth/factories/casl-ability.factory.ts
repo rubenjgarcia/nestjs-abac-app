@@ -143,98 +143,94 @@ export class CaslAbilityFactory {
     withPolicies.policies &&
       withPolicies.policies.forEach((p) => {
         p.actions.forEach((a) => {
-          try {
-            let subject;
-            let action;
+          let subject;
+          let action;
 
-            if (a === '*') {
-              subject = 'all';
-              action = 'manage';
-            } else if (a.includes(':')) {
-              const split = a.split(':');
-              subject = split[0];
-              action = split[1];
-              if (subject === 'all') {
-                this.logger.error(
-                  "Error creating policy: 'all' is a reserved keyword",
-                );
-                return;
-              } else if (subject === '*') {
-                subject = 'all';
-              }
-
-              if (action === 'manage') {
-                this.logger.error(
-                  "Error creating policy: 'manage' is a reserved keyword",
-                );
-                return;
-              } else if (action === '*') {
-                action = 'manage';
-              }
-            } else {
-              this.logger.error('Error creating policy: Malfomed action');
+          if (a === '*') {
+            subject = 'all';
+            action = 'manage';
+          } else if (a.includes(':')) {
+            const split = a.split(':');
+            subject = split[0];
+            action = split[1];
+            if (subject === 'all') {
+              this.logger.error(
+                "Error creating policy: 'all' is a reserved keyword",
+              );
               return;
+            } else if (subject === '*') {
+              subject = 'all';
             }
 
-            let conditions: MongoQuery = p.resources.includes('*')
-              ? undefined
-              : { _id: { $in: p.resources } };
-            if (p.condition) {
-              const operator = Object.keys(p.condition)[0];
-              let condition;
-              let policyCondition;
-
-              switch (operator) {
-                case 'StringEquals':
-                case 'StringNotEquals':
-                  condition = p.condition as OneStringOperatorKey<
-                    StringOperator,
-                    StringSingleValue
-                  >;
-                  policyCondition = createPolicyCondition(
-                    operator.replace('String', '') as PolicyConditionType,
-                    Object.keys(condition[operator])[0],
-                    Object.values(condition[operator])[0],
-                  );
-                  break;
-                case 'NumberEquals':
-                case 'NumberNotEquals':
-                case 'NumberLessThan':
-                case 'NumberLessThanEquals':
-                case 'NumberGreaterThan':
-                case 'NumberGreaterThanEquals':
-                  condition = p.condition as OneNumberOperatorKey<
-                    NumberOperator,
-                    NumberSingleValue
-                  >;
-                  policyCondition = createPolicyCondition(
-                    operator.replace('Number', '') as PolicyConditionType,
-                    Object.keys(condition[operator])[0],
-                    Object.values(condition[operator])[0],
-                  );
-                  break;
-                case 'Bool':
-                  condition = p.condition as OneBooleanOperatorKey<
-                    BooleanOperator,
-                    BooleanSingleValue
-                  >;
-                  policyCondition = createPolicyCondition(
-                    'Equals',
-                    Object.keys(condition[operator])[0],
-                    Object.values(condition[operator])[0],
-                  );
-                  break;
-              }
-              conditions = { ...conditions, ...policyCondition };
+            if (action === 'manage') {
+              this.logger.error(
+                "Error creating policy: 'manage' is a reserved keyword",
+              );
+              return;
+            } else if (action === '*') {
+              action = 'manage';
             }
+          } else {
+            this.logger.error('Error creating policy: Malfomed action');
+            return;
+          }
 
-            if (p.effect === Effect.Allow) {
-              allow(action, subject, conditions);
-            } else {
-              deny(action, subject, conditions);
+          let conditions: MongoQuery = p.resources.includes('*')
+            ? undefined
+            : { _id: { $in: p.resources } };
+          if (p.condition) {
+            const operator = Object.keys(p.condition)[0];
+            let condition;
+            let policyCondition;
+
+            switch (operator) {
+              case 'StringEquals':
+              case 'StringNotEquals':
+                condition = p.condition as OneStringOperatorKey<
+                  StringOperator,
+                  StringSingleValue
+                >;
+                policyCondition = createPolicyCondition(
+                  operator.replace('String', '') as PolicyConditionType,
+                  Object.keys(condition[operator])[0],
+                  Object.values(condition[operator])[0],
+                );
+                break;
+              case 'NumberEquals':
+              case 'NumberNotEquals':
+              case 'NumberLessThan':
+              case 'NumberLessThanEquals':
+              case 'NumberGreaterThan':
+              case 'NumberGreaterThanEquals':
+                condition = p.condition as OneNumberOperatorKey<
+                  NumberOperator,
+                  NumberSingleValue
+                >;
+                policyCondition = createPolicyCondition(
+                  operator.replace('Number', '') as PolicyConditionType,
+                  Object.keys(condition[operator])[0],
+                  Object.values(condition[operator])[0],
+                );
+                break;
+              case 'Bool':
+                condition = p.condition as OneBooleanOperatorKey<
+                  BooleanOperator,
+                  BooleanSingleValue
+                >;
+                policyCondition = createPolicyCondition(
+                  'Equals',
+                  Object.keys(condition[operator])[0],
+                  Object.values(condition[operator])[0],
+                );
+                break;
             }
-          } catch (e) {
-            this.logger.error('Error creating policy', e.stack);
+            conditions = { ...conditions, ...policyCondition };
+          }
+
+          if (p.effect === Effect.Allow) {
+            allow(action, subject, conditions);
+          } else {
+            deny(action, subject, conditions);
           }
         });
       });
