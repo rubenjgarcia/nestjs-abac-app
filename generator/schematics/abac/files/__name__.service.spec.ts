@@ -97,7 +97,7 @@ describe('<%= singular(classify(name)) %>Service', () => {
       expect(response<%= singular(classify(name)) %>.id).toBeDefined();
     });
 
-    it('should fail to create a <%= singular(name) %> if the <%= name %> are incorrect', async () => {
+    it('should fail to create a <%= singular(name) %> if the policies are incorrect', async () => {
       await expect(
         <%= singular(name) %>Service.create(
           { },
@@ -167,7 +167,7 @@ describe('<%= singular(classify(name)) %>Service', () => {
       expect(response<%= singular(classify(name)) %>.id).toBeDefined();
     });
 
-    it('should fail to get a <%= singular(name) %> if the <%= name %> are incorrect', async () => {
+    it('should fail to get a <%= singular(name) %> if the policies are incorrect', async () => {
       await new <%= singular(name) %>Model(<%= singular(name) %>).save();
       await expect(
         <%= singular(name) %>Service.findOne(<%= singular(name) %>._id.toString(), {
@@ -285,7 +285,7 @@ describe('<%= singular(classify(name)) %>Service', () => {
 
   describe('update', () => {
     it('should update <%= singular(name) %>', async () => {
-      const response<%= singular(classify(name)) %> = await new <%= singular(name) %>Model({ }).save();
+      const response<%= singular(classify(name)) %> = await new <%= singular(name) %>Model(<%= singular(name) %>).save();
 
       const updated<%= singular(classify(name)) %> = await <%= singular(name) %>Service.update(
         response<%= singular(classify(name)) %>._id.toString(),
@@ -304,28 +304,8 @@ describe('<%= singular(classify(name)) %>Service', () => {
       expect(updated<%= singular(classify(name)) %>.id).toBeDefined();
     });
 
-    it('should update <%= singular(name) %> and put a condition', async () => {
-      const response<%= singular(classify(name)) %> = await new <%= singular(name) %>Model({ }).save();
-
-      const updated<%= singular(classify(name)) %> = await <%= singular(name) %>Service.update(
-        response<%= singular(classify(name)) %>._id.toString(),
-        { },
-        {
-          policies: [
-            {
-              name: 'FooPolicy',
-              effect: Effect.Allow,
-              actions: [`${<%= singular(classify(name)) %>Scope}:${Update<%= singular(classify(name)) %>}`],
-              resources: ['*'],
-            },
-          ],
-        },
-      );
-      expect(updated<%= singular(classify(name)) %>.id).toBeDefined();
-    });
-
-    it('should fail to update a <%= singular(name) %> if the <%= name %> are incorrect', async () => {
-      const response<%= singular(classify(name)) %> = await new <%= singular(name) %>Model({ }).save();
+    it('should fail to update a <%= singular(name) %> if the policies are incorrect', async () => {
+      const response<%= singular(classify(name)) %> = await new <%= singular(name) %>Model(<%= singular(name) %>).save();
 
       await expect(
         <%= singular(name) %>Service.update(
@@ -379,7 +359,7 @@ describe('<%= singular(classify(name)) %>Service', () => {
       ).rejects.toThrow(`Cannot execute "${Update<%= singular(classify(name)) %>}" on "${<%= singular(classify(name)) %>Scope}"`);
     });
 
-    it('should update an <%= singular(name) %> based on condition', async () => {
+    it('should update a <%= singular(name) %> based on condition', async () => {
       //TODO Must implement this test after create the real schema
     });
   });
@@ -401,7 +381,7 @@ describe('<%= singular(classify(name)) %>Service', () => {
       expect((await <%= singular(name) %>Model.count()).valueOf()).toBe(0);
     });
 
-    it('should fail to remove a <%= singular(name) %> if the <%= name %> are incorrect', async () => {
+    it('should fail to remove a <%= singular(name) %> if the policies are incorrect', async () => {
       await new <%= singular(name) %>Model(<%= singular(name) %>).save();
 
       await expect(

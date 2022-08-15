@@ -283,7 +283,7 @@ describe('<%= classify(name) %> e2e', () => {
           .expect(403);
       });
 
-      it('should fail to get polcy if user has allow effect and the resource is informed with the same id of the polcy that is trying to get and has deny effect with wildcard', async () => {
+      it('should fail to get <%= singular(name) %> if user has allow effect and the resource is informed with the same id of the polcy that is trying to get and has deny effect with wildcard', async () => {
         const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>({ });
         const accessToken = await e2eUtils.createUserAndLogin(
           {
@@ -471,12 +471,7 @@ describe('<%= classify(name) %> e2e', () => {
         const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>({ });
         const response = await request(app.getHttpServer())
           .put(`/<%= name %>/${saved<%= singular(classify(name)) %>._id}`)
-          .send({
-            name: 'BazPolicy',
-            effect: Effect.Deny,
-            actions: ['Baz:Action'],
-            resources: ['000000000000'],
-          })
+          .send({ })
           .set('Authorization', 'bearer ' + accessToken)
           .expect(200);
           expect(response.body._id).toBe(saved<%= singular(classify(name)) %>._id.toString());
@@ -627,12 +622,7 @@ describe('<%= classify(name) %> e2e', () => {
         );
         const response = await request(app.getHttpServer())
           .put(`/<%= name %>/${saved<%= singular(classify(name)) %>._id._id}`)
-          .send({
-            name: 'BazPolicy',
-            effect: Effect.Deny,
-            actions: ['Baz:Action'],
-            resources: ['000000000000'],
-          })
+          .send({ })
           .set('Authorization', 'bearer ' + accessToken)
           .expect(200);
           expect(response.body._id).toBeDefined();

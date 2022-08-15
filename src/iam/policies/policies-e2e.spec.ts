@@ -294,7 +294,7 @@ describe('Policies e2e', () => {
           .expect(403);
       });
 
-      it('should fail to get polcy if user has allow effect and the resource is informed with the same id of the polcy that is trying to get and has deny effect with wildcard', async () => {
+      it('should fail to get policy if user has allow effect and the resource is informed with the same id of the polcy that is trying to get and has deny effect with wildcard', async () => {
         const savedPolicy = await e2eUtils.createPolicy({
           name: 'BarPolicy',
           effect: Effect.Allow,
