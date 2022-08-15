@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "node_modules",
+    "test",
+    "dist",
+    "**/*spec.ts",
+    "src",
+    "generator",
+    "lib"
+  ],
+  "include": ["cli"],
+  "compilerOptions": {
+    "outDir": "./lib/cli",
+    "rootDir": "./cli",
+    "incremental": false
+  }
+}

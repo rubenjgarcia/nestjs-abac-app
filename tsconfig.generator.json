@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "node_modules",
+    "test",
+    "dist",
+    "**/*spec.ts",
+    "src",
+    "generator/schematics/abac/files/**",
+    "cli"
+  ],
+  "include": ["generator"],
+  "compilerOptions": {
+    "outDir": "./lib",
+    "rootDir": "./generator",
+    "incremental": false
+  }
+}

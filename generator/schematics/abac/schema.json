@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "$id": "SchematicsABAC",
+  "title": "ABAC Options Schema",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The name of the module.",
+      "x-prompt": "What name would you like to use for this module (plural, e.g., \"users\")?"
+    }
+  },
+  "required": ["name"]
+}
