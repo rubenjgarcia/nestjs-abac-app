@@ -7,6 +7,7 @@ export const GetUser = 'GetUser';
 export const CreateUser = 'CreateUser';
 export const UpdateUser = 'UpdateUser';
 export const RemoveUser = 'RemoveUser';
+export const AddGroupToUser = 'AddGroupToUser';
 
 export class UserCrudActions implements CrudActions {
   scope = UserScope;

@@ -7,6 +7,7 @@ import {
   UserScope,
   UpdateUser,
   RemoveUser,
+  AddGroupToUser,
 } from './users.actions';
 import { IPolicyHandler } from '../../framework/handler-definition';
 
@@ -62,6 +63,21 @@ export class RemoveUserPolicyHandler implements IPolicyHandler {
   handle(ability: Ability, params: any) {
     return ability.can(
       RemoveUser,
+      subject(UserScope, { _id: new Types.ObjectId(params[this.param]) }),
+    );
+  }
+}
+
+export class AddGroupToUserPolicyHandler implements IPolicyHandler {
+  private readonly param: string;
+
+  constructor(param: string) {
+    this.param = param;
+  }
+
+  handle(ability: Ability, params: any) {
+    return ability.can(
+      AddGroupToUser,
       subject(UserScope, { _id: new Types.ObjectId(params[this.param]) }),
     );
   }

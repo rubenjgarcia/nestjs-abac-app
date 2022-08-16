@@ -21,6 +21,7 @@ import {
   CreateUsersPolicyHandler,
   RemoveUserPolicyHandler,
   UpdateUserPolicyHandler,
+  AddGroupToUserPolicyHandler,
 } from './users.handler';
 
 @Controller(['iam/users'])
@@ -67,5 +68,15 @@ export class UserController {
   @CheckPolicies(new RemoveUserPolicyHandler('id'))
   remove(@Param('id') id: string, @Req() request: Request) {
     return this.userService.remove(id, request.user);
+  }
+
+  @Post(':id/group/:groupId')
+  @CheckPolicies(new AddGroupToUserPolicyHandler('id'))
+  async addGroupToUser(
+    @Param('id') id: string,
+    @Param('groupId') groupId: string,
+    @Req() request: Request,
+  ): Promise<User> {
+    return await this.userService.addGroupToUser(id, groupId, request.user);
   }
 }

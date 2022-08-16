@@ -11,6 +11,7 @@ import { AuthModule } from './auth.module';
 import { E2EUtils } from '../../framework/tests/e2e-utils';
 import { User, UserSchema } from '../users/users.schema';
 import { Policy, PolicySchema } from '../policies/policies.schema';
+import { Group, GroupSchema } from '../groups/groups.schema';
 
 describe('Auth e2e', () => {
   let app: INestApplication;

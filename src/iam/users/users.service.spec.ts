@@ -17,7 +17,9 @@ import {
   UpdateUser,
   UserScope,
   RemoveUser,
+  AddGroupToUser,
 } from './users.actions';
+import { Group, GroupSchema } from '../groups/groups.schema';
 
 describe('UserService', () => {
   let userService: UserService;
@@ -25,6 +27,7 @@ describe('UserService', () => {
   let mongoConnection: Connection;
   let userModel: Model<User>;
   let policyModel: Model<Policy>;
+  let groupModel: Model<Group>;
 
   const user: User = {
     _id: new Types.ObjectId('000000000000'),
@@ -56,6 +59,7 @@ describe('UserService', () => {
     mongoConnection = (await connect(uri)).connection;
     userModel = mongoConnection.model(User.name, UserSchema);
     policyModel = mongoConnection.model(Policy.name, PolicySchema);
+    groupModel = mongoConnection.model(Group.name, GroupSchema);
     const module = await Test.createTestingModule({
       providers: [
         UserService,
@@ -64,6 +68,10 @@ describe('UserService', () => {
         {
           provide: getModelToken(Policy.name),
           useValue: policyModel,
+        },
+        {
+          provide: getModelToken(Group.name),
+          useValue: groupModel,
         },
       ],
     }).compile();
@@ -387,6 +395,41 @@ describe('UserService', () => {
       expect(responsePolicy.effect).toBe(savedPolicy.effect);
       expect(responsePolicy.name).toBe(savedPolicy.name);
       expect(responsePolicy.resources).toEqual(savedPolicy.resources);
+    });
+
+    it('should return an user without password, with policies and groups with policies', async () => {
+      const savedPolicy = await new policyModel(policy).save();
+      const savedGroup = await new groupModel({
+        name: 'FooGroup',
+        policies: [savedPolicy],
+      }).save();
+      await new userModel({
+        ...user,
+        policies: [savedPolicy],
+        groups: [savedGroup],
+      }).save();
+
+      const responseUser = await userService.findOneWithPolicies(user.email);
+      expect(responseUser.email).toBe(user.email);
+      expect(responseUser.password).toBeUndefined();
+
+      expect(responseUser.policies.length).toBe(1);
+      const responsePolicy = responseUser.policies[0];
+      expect(responsePolicy.actions).toEqual(savedPolicy.actions);
+      expect(responsePolicy.effect).toBe(savedPolicy.effect);
+      expect(responsePolicy.name).toBe(savedPolicy.name);
+      expect(responsePolicy.resources).toEqual(savedPolicy.resources);
+
+      expect(responseUser.groups.length).toBe(1);
+      const responseGroup = responseUser.groups[0];
+      expect(responseGroup.name).toEqual(savedGroup.name);
+
+      expect(responseGroup.policies.length).toBe(1);
+      const responseGroupPolicy = responseGroup.policies[0];
+      expect(responseGroupPolicy.actions).toEqual(savedPolicy.actions);
+      expect(responseGroupPolicy.effect).toBe(savedPolicy.effect);
+      expect(responseGroupPolicy.name).toBe(savedPolicy.name);
+      expect(responseGroupPolicy.resources).toEqual(savedPolicy.resources);
     });
   });
 
@@ -741,6 +784,38 @@ describe('UserService', () => {
           ],
         }),
       ).rejects.toThrow(/No document found for query.*/);
+    });
+  });
+
+  describe('addGroupToUser', () => {
+    it('should add a group to an user', async () => {
+      await new userModel(user).save();
+      const savedPolicy = await new policyModel(policy).save();
+      const groupResponse = await new groupModel({
+        name: 'FooGroup',
+        policies: [savedPolicy],
+      }).save();
+      const userResponse = await userService.addGroupToUser(
+        user._id.toString(),
+        groupResponse.id,
+        {
+          policies: [
+            {
+              name: 'FooPolicy',
+              effect: Effect.Allow,
+              actions: [`${UserScope}:${AddGroupToUser}`],
+              resources: ['*'],
+            },
+          ],
+        },
+      );
+
+      expect(userResponse.groups.length).toBe(1);
+      expect(userResponse.groups[0]._id.toString()).toBe(
+        groupResponse.id.toString(),
+      );
+      expect(userResponse.groups[0].name).toBe(groupResponse.name);
+      expect(userResponse.groups[0].policies).toBe(undefined);
     });
   });
 });

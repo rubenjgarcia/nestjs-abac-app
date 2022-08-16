@@ -19,10 +19,16 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: any) {
     const user = await this.userService.findOneWithPolicies(payload.email);
+    const userPolicies = user.policies || [];
+    const groupPolicies =
+      user.groups?.reduce(
+        (prev, cur) => [...prev, ...(cur.policies || [])],
+        [],
+      ) || [];
     return {
       userId: payload.sub,
       email: payload.email,
-      policies: user.policies,
+      policies: [...userPolicies, ...groupPolicies],
     };
   }
 }

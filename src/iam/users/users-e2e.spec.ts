@@ -21,6 +21,8 @@ import {
 } from './users.actions';
 import { User, UserSchema } from './users.schema';
 import { Policy, PolicySchema } from '../policies/policies.schema';
+import { GroupsModule } from '../groups/groups.module';
+import { Group, GroupSchema } from '../groups/groups.schema';
 
 describe('Users e2e', () => {
   let app: INestApplication;
