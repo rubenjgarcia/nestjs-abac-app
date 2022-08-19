@@ -29,6 +29,14 @@ describe('UserController', () => {
     _id: new Types.ObjectId('000000000000'),
     email: 'foo',
     password: 'bar',
+    unit: {
+      _id: new Types.ObjectId('000000000000'),
+      name: 'FooUnit',
+      organization: {
+        _id: new Types.ObjectId('000000000000'),
+        name: 'FooOrganization',
+      },
+    },
   };
 
   beforeAll(async () => {
@@ -79,17 +87,13 @@ describe('UserController', () => {
             resources: ['*'],
           },
         ],
+        unitId: '000000000000',
       };
-      await expect(
-        userController.create(userCreateDto, request),
-      ).resolves.toEqual({
-        _id: new Types.ObjectId('000000000000'),
-        email: 'foo',
-        password: 'bar',
-      });
+      userController.create(userCreateDto, request);
       expect(userService.create).toHaveBeenCalledWith(
         userCreateDto,
         request.user,
+        '000000000000',
       );
     });
   });
@@ -106,6 +110,7 @@ describe('UserController', () => {
             resources: ['*'],
           },
         ],
+        unitId: '000000000000',
       };
       await expect(
         userController.findOne('000000000000', request),
@@ -131,6 +136,7 @@ describe('UserController', () => {
             resources: ['*'],
           },
         ],
+        unitId: '000000000000',
       };
       await expect(userController.findAll(request)).resolves.toEqual([
         {
@@ -161,20 +167,16 @@ describe('UserController', () => {
             resources: ['*'],
           },
         ],
+        unitId: '000000000000',
       };
       const updateUserDto: UpdateUserDto = { policies: [] };
-      await expect(
-        userController.update('000000000000', updateUserDto, request),
-      ).resolves.toEqual({
-        _id: new Types.ObjectId('000000000000'),
-        email: 'foo',
-        password: 'bar',
-      });
+      userController.update('000000000000', updateUserDto, request);
 
       expect(userService.update).toHaveBeenCalledWith(
         '000000000000',
         updateUserDto,
         request.user,
+        '000000000000',
       );
     });
   });
@@ -190,6 +192,7 @@ describe('UserController', () => {
           resources: ['*'],
         },
       ],
+      unitId: '000000000000',
     };
     it('should remove an user', async () => {
       userController.remove('000000000000', request);

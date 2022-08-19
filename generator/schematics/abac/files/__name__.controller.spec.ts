@@ -1,8 +1,9 @@
 import { Test } from '@nestjs/testing';
-import { Types } from 'mongoose';
 import * as mocks from 'node-mocks-http';
 import { <%= singular(classify(name)) %>Controller } from './<%= name %>.controller';
 import { <%= singular(classify(name)) %>Service } from './<%= name %>.service';
+import { Create<%= singular(classify(name)) %>Dto } from './dtos/create-<%= singular(name) %>.dto';
+import { Update<%= singular(classify(name)) %>Dto } from './dtos/update-<%= singular(name) %>.dto';
 import { Effect } from '../framework/factories/casl-ability.factory';
 import {
     Create<%= singular(classify(name)) %>,
@@ -17,6 +18,9 @@ describe('<%= singular(classify(name)) %>Controller', () => {
   let <%= singular(name) %>Controller: <%= singular(classify(name)) %>Controller;
   let <%= singular(name) %>Service: <%= singular(classify(name)) %>Service;
 
+  const create<%= singular(classify(name)) %>Dto: Create<%= singular(classify(name)) %>Dto = {};
+  const update<%= singular(classify(name)) %>Dto: Update<%= singular(classify(name)) %>Dto = {};
+
   beforeAll(async () => {
     const module = await Test.createTestingModule({
       controllers: [<%= singular(classify(name)) %>Controller],
@@ -24,23 +28,10 @@ describe('<%= singular(classify(name)) %>Controller', () => {
         {
           provide: <%= singular(classify(name)) %>Service,
           useValue: {
-            findOne: jest.fn().mockResolvedValue({
-              _id: new Types.ObjectId('000000000000'),
-            }),
-            findAll: jest.fn().mockResolvedValue([
-              {
-                _id: new Types.ObjectId('000000000000'),
-              },
-              {
-                _id: new Types.ObjectId('000000000001'),
-              },
-            ]),
-            create: jest.fn().mockResolvedValue({
-              _id: new Types.ObjectId('000000000000'),
-            }),
-            update: jest.fn().mockResolvedValue({
-              _id: new Types.ObjectId('000000000000'),
-            }),
+            findOne: jest.fn(),
+            findAll: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
             remove: jest.fn(),
           },
         },
@@ -63,15 +54,13 @@ describe('<%= singular(classify(name)) %>Controller', () => {
             resources: ['*'],
           },
         ],
+        unitId: '000000000000',
       };
-      await expect(
-        <%= singular(name) %>Controller.create({ }, request),
-      ).resolves.toEqual({
-        _id: new Types.ObjectId('000000000000'),
-      });
+      await <%= singular(name) %>Controller.create(create<%= singular(classify(name)) %>Dto, request)
       expect(<%= singular(name) %>Service.create).toHaveBeenCalledWith(
-        { },
+        create<%= singular(classify(name)) %>Dto,
         request.user,
+        '000000000000'
       );
     });
   });
@@ -88,12 +77,10 @@ describe('<%= singular(classify(name)) %>Controller', () => {
             resources: ['*'],
           },
         ],
+        unitId: '000000000000',
       };
-      await expect(<%= singular(name) %>Controller.findOne('foo', request)).resolves.toEqual({
-        _id: new Types.ObjectId('000000000000'),
-      });
-
-      expect(<%= singular(name) %>Service.findOne).toHaveBeenCalledWith('foo', request.user);
+      await <%= singular(name) %>Controller.findOne('foo', request)
+      expect(<%= singular(name) %>Service.findOne).toHaveBeenCalledWith('foo', request.user, '000000000000');
     });
   });
 
@@ -109,17 +96,10 @@ describe('<%= singular(classify(name)) %>Controller', () => {
             resources: ['*'],
           },
         ],
+        unitId: '000000000000',
       };
-      await expect(<%= singular(name) %>Controller.findAll(request)).resolves.toEqual([
-        {
-          _id: new Types.ObjectId('000000000000'),
-        },
-        {
-          _id: new Types.ObjectId('000000000001'),
-        },
-      ]);
-
-      expect(<%= singular(name) %>Service.findAll).toHaveBeenCalledWith(request.user);
+      await <%= singular(name) %>Controller.findAll(request)
+      expect(<%= singular(name) %>Service.findAll).toHaveBeenCalledWith(request.user, '000000000000');
     });
   });
 
@@ -135,18 +115,14 @@ describe('<%= singular(classify(name)) %>Controller', () => {
             resources: ['*'],
           },
         ],
+        unitId: '000000000000',
       };
-      const update<%= singular(classify(name)) %>Dto = { };
-      await expect(
-        <%= singular(name) %>Controller.update('000000000000', update<%= singular(classify(name)) %>Dto, request),
-      ).resolves.toEqual({
-        _id: new Types.ObjectId('000000000000'),
-      });
-
+      await <%= singular(name) %>Controller.update('000000000000', update<%= singular(classify(name)) %>Dto, request)
       expect(<%= singular(name) %>Service.update).toHaveBeenCalledWith(
         '000000000000',
         update<%= singular(classify(name)) %>Dto,
         request.user,
+        '000000000000'
       );
     });
   });
@@ -163,11 +139,13 @@ describe('<%= singular(classify(name)) %>Controller', () => {
             resources: ['*'],
           },
         ],
+        unitId: '000000000000',
       };
-      <%= singular(name) %>Controller.remove('000000000000', request);
+      await <%= singular(name) %>Controller.remove('000000000000', request);
       expect(<%= singular(name) %>Service.remove).toHaveBeenCalledWith(
         '000000000000',
         request.user,
+        '000000000000'
       );
     });
   });

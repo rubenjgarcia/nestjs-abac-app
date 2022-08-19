@@ -6,10 +6,7 @@ import { CreateAdminCommand } from './create-admin.command';
   subCommands: [CreateAdminCommand],
 })
 export class UsersCommand extends CommandRunner {
-  async run(
-    passedParams: string[],
-    options?: Record<string, any>,
-  ): Promise<void> {
+  async run(): Promise<void> {
     console.log('Use the subcommand `create-admin`');
   }
 }

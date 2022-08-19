@@ -17,23 +17,21 @@ import {
   Remove<%= singular(classify(name)) %>,
   Update<%= singular(classify(name)) %>,
 } from './<%= name %>.actions';
+import { Unit, UnitSchema } from './iam/units/units.schema';
+import { Organization, OrganizationSchema } from './iam/organizations/organizations.schema';
 
 describe('<%= singular(classify(name)) %>Service', () => {
   let <%= singular(name) %>Service: <%= singular(classify(name)) %>Service;
   let mongod: MongoMemoryServer;
   let mongoConnection: Connection;
   let <%= singular(name) %>Model: Model<<%= singular(classify(name)) %>>;
+  let organizationModel: Model<Organization>;
+  let unitModel: Model<Unit>;
 
-  const <%= singular(name) %>: <%= singular(classify(name)) %> = {
-    _id: new Types.ObjectId('000000000000'),
-  };
-
-  const <%= name %>: <%= singular(classify(name)) %>[] = [
-    <%= singular(name) %>,
-    {
-      _id: new Types.ObjectId('000000000001'),
-    },
-  ];
+  let organization: Organization;
+  let unit: Unit;
+  let <%= singular(name) %>: <%= singular(classify(name)) %>;
+  let <%= singular(name) %>2: <%= singular(classify(name)) %>;
 
   beforeAll(async () => {
     mongoose.plugin(accessibleRecordsPlugin);
@@ -41,6 +39,11 @@ describe('<%= singular(classify(name)) %>Service', () => {
     const uri = mongod.getUri();
     mongoConnection = (await connect(uri)).connection;
     <%= singular(name) %>Model = mongoConnection.model(<%= singular(classify(name)) %>.name, <%= singular(classify(name)) %>Schema);
+    organizationModel = mongoConnection.model(
+      Organization.name,
+      OrganizationSchema,
+    );
+    unitModel = mongoConnection.model(Unit.name, UnitSchema);
     const module = await Test.createTestingModule({
       providers: [
         <%= singular(classify(name)) %>Service,
@@ -56,6 +59,26 @@ describe('<%= singular(classify(name)) %>Service', () => {
     await mongoConnection.dropDatabase();
     await mongoConnection.close();
     await mongod.stop();
+  });
+
+  beforeEach(async () => {
+    organization = await new organizationModel({
+      _id: new Types.ObjectId('000000000000'),
+      name: 'FooOrganization',
+    }).save();
+    unit = await new unitModel({
+      _id: new Types.ObjectId('000000000000'),
+      name: 'FooUnit',
+      organization,
+    }).save();
+    <%= singular(name) %> = {
+      _id: new Types.ObjectId('000000000000'),
+      unit,
+    };
+    <%= singular(name) %>2 = {
+      _id: new Types.ObjectId('000000000001'),
+      unit,
+    };
   });
 
   afterEach(async () => {
@@ -76,8 +99,10 @@ describe('<%= singular(classify(name)) %>Service', () => {
             },
           ],
         },
+        unit._id.toString(),
       );
       expect(response<%= singular(classify(name)) %>.id).toBeDefined();
+      expect(response<%= singular(classify(name)) %>.unit).toBeDefined();
     });
 
     it('should create a <%= singular(name) %> with condition', async () => {
@@ -93,8 +118,10 @@ describe('<%= singular(classify(name)) %>Service', () => {
             },
           ],
         },
+        unit._id.toString(),
       );
       expect(response<%= singular(classify(name)) %>.id).toBeDefined();
+      expect(response<%= singular(classify(name)) %>.unit).toBeDefined();
     });
 
     it('should fail to create a <%= singular(name) %> if the policies are incorrect', async () => {
@@ -111,6 +138,7 @@ describe('<%= singular(classify(name)) %>Service', () => {
               },
             ],
           },
+          unit._id.toString(),
         ),
       ).rejects.toThrow(`Cannot execute "${Create<%= singular(classify(name)) %>}" on "${<%= singular(classify(name)) %>Scope}"`);
 
@@ -127,6 +155,7 @@ describe('<%= singular(classify(name)) %>Service', () => {
               },
             ],
           },
+          unit._id.toString(),
         ),
       ).rejects.toThrow(`Cannot execute "${Create<%= singular(classify(name)) %>}" on "${<%= singular(classify(name)) %>Scope}"`);
 
@@ -143,6 +172,7 @@ describe('<%= singular(classify(name)) %>Service', () => {
               },
             ],
           },
+          unit._id.toString(),
         ),
       ).rejects.toThrow(`Cannot execute "${Create<%= singular(classify(name)) %>}" on "${<%= singular(classify(name)) %>Scope}"`);
     });
@@ -163,8 +193,10 @@ describe('<%= singular(classify(name)) %>Service', () => {
             },
           ],
         },
+        unit._id.toString(),
       );
       expect(response<%= singular(classify(name)) %>.id).toBeDefined();
+      expect(response<%= singular(classify(name)) %>.unit).toBeDefined();
     });
 
     it('should fail to get a <%= singular(name) %> if the policies are incorrect', async () => {
@@ -179,7 +211,9 @@ describe('<%= singular(classify(name)) %>Service', () => {
               resources: ['*'],
             },
           ],
-        }),
+        },
+        unit._id.toString(),
+        ),
       ).rejects.toThrow(`Cannot execute "${Get<%= singular(classify(name)) %>}" on "${<%= singular(classify(name)) %>Scope}"`);
 
       await expect(
@@ -192,7 +226,7 @@ describe('<%= singular(classify(name)) %>Service', () => {
               resources: ['*'],
             },
           ],
-        }),
+        }, unit._id.toString(),),
       ).rejects.toThrow(`Cannot execute "${Get<%= singular(classify(name)) %>}" on "${<%= singular(classify(name)) %>Scope}"`);
 
       await expect(
@@ -205,19 +239,44 @@ describe('<%= singular(classify(name)) %>Service', () => {
               resources: ['*'],
             },
           ],
-        }),
+        }, unit._id.toString(),),
       ).rejects.toThrow(`Cannot execute "${Get<%= singular(classify(name)) %>}" on "${<%= singular(classify(name)) %>Scope}"`);
     });
 
     it('should get a <%= singular(name) %> based on condition', async () => {
       //TODO Must implement this test after create the real schema
     });
+
+    it('should fail to return a <%= singular(name) %> if the unit is not the same', async () => {
+      const unitBar = await new unitModel({
+        _id: new Types.ObjectId('000000000001'),
+        name: 'BarUnit',
+        organization,
+      }).save();
+      await new <%= singular(name) %>Model({ ...<%= singular(name) %>, unit: unitBar }).save();
+      await expect(
+        <%= singular(name) %>Service.findOne(
+          <%= singular(name) %>._id.toString(),
+          {
+            policies: [
+              {
+                name: 'FooPolicy',
+                effect: Effect.Allow,
+                actions: [`${<%= singular(classify(name)) %>Scope}:${Get<%= singular(classify(name)) %>}`],
+                resources: ['*'],
+              },
+            ],
+          },
+          unit._id.toString(),
+        ),
+      ).rejects.toThrow(/No document found for query.*/);
+    });
   });
 
   describe('findAll', () => {
     it('should return an array of <%= name %>', async () => {
-      await new <%= singular(name) %>Model(<%= name %>[0]).save();
-      await new <%= singular(name) %>Model(<%= name %>[1]).save();
+      await new <%= singular(name) %>Model(<%= singular(name) %>).save();
+      await new <%= singular(name) %>Model(<%= singular(name) %>2).save();
 
       const response<%= classify(name) %> = await <%= singular(name) %>Service.findAll({
         policies: [
@@ -228,7 +287,7 @@ describe('<%= singular(classify(name)) %>Service', () => {
             resources: ['*'],
           },
         ],
-      });
+      }, unit._id.toString(),);
       expect(response<%= classify(name) %>.length).toBe(2);
       expect(response<%= classify(name) %>[0].id).toBeDefined();
       expect(response<%= classify(name) %>[1].id).toBeDefined();
@@ -239,8 +298,8 @@ describe('<%= singular(classify(name)) %>Service', () => {
     });
 
     it('should fail to return an array of <%= name %> if the <%= name %> are incorrect', async () => {
-      await new <%= singular(name) %>Model(<%= name %>[0]).save();
-      await new <%= singular(name) %>Model(<%= name %>[1]).save();
+      await new <%= singular(name) %>Model(<%= singular(name) %>).save();
+      await new <%= singular(name) %>Model(<%= singular(name) %>2).save();
 
       await expect(
         <%= singular(name) %>Service.findAll({
@@ -252,7 +311,7 @@ describe('<%= singular(classify(name)) %>Service', () => {
               resources: ['*'],
             },
           ],
-        }),
+        }, unit._id.toString(),),
       ).rejects.toThrow(`Cannot execute "${List<%= classify(name) %>}" on "${<%= singular(classify(name)) %>Scope}"`);
 
       await expect(
@@ -265,7 +324,7 @@ describe('<%= singular(classify(name)) %>Service', () => {
               resources: ['*'],
             },
           ],
-        }),
+        }, unit._id.toString(),),
       ).rejects.toThrow(`Cannot execute "${List<%= classify(name) %>}" on "${<%= singular(classify(name)) %>Scope}"`);
 
       await expect(
@@ -278,8 +337,31 @@ describe('<%= singular(classify(name)) %>Service', () => {
               resources: ['*'],
             },
           ],
-        }),
+        }, unit._id.toString(),),
       ).rejects.toThrow(`Cannot execute "${List<%= classify(name) %>}" on "${<%= singular(classify(name)) %>Scope}"`);
+    });
+
+    it('should return an array of <%= name %> based on unit', async () => {
+      const unitBar = await new unitModel({
+        _id: new Types.ObjectId('000000000001'),
+        name: 'BarUnit',
+        organization,
+      }).save();
+      await new <%= singular(name) %>Model(<%= singular(name) %>).save();
+      await new <%= singular(name) %>Model({ ...<%= singular(name) %>2, unit: unitBar }).save();
+
+      const response<%= classify(name) %> = await <%= singular(name) %>Service.findAll({
+        policies: [
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: [`${<%= singular(classify(name)) %>Scope}:${List<%= classify(name) %>}`],
+            resources: ['*'],
+          },
+        ],
+      }, unit._id.toString(),);
+      expect(response<%= classify(name) %>.length).toBe(1);
+      expect(response<%= classify(name) %>[0].id).toBeDefined();
     });
   });
 
@@ -300,6 +382,7 @@ describe('<%= singular(classify(name)) %>Service', () => {
             },
           ],
         },
+        unit._id.toString(),
       );
       expect(updated<%= singular(classify(name)) %>.id).toBeDefined();
     });
@@ -321,6 +404,7 @@ describe('<%= singular(classify(name)) %>Service', () => {
               },
             ],
           },
+          unit._id.toString(),
         ),
       ).rejects.toThrow(`Cannot execute "${Update<%= singular(classify(name)) %>}" on "${<%= singular(classify(name)) %>Scope}"`);
 
@@ -338,6 +422,7 @@ describe('<%= singular(classify(name)) %>Service', () => {
               },
             ],
           },
+          unit._id.toString(),
         ),
       ).rejects.toThrow(`Cannot execute "${Update<%= singular(classify(name)) %>}" on "${<%= singular(classify(name)) %>Scope}"`);
 
@@ -355,12 +440,38 @@ describe('<%= singular(classify(name)) %>Service', () => {
               },
             ],
           },
+          unit._id.toString(),
         ),
       ).rejects.toThrow(`Cannot execute "${Update<%= singular(classify(name)) %>}" on "${<%= singular(classify(name)) %>Scope}"`);
     });
 
     it('should update a <%= singular(name) %> based on condition', async () => {
       //TODO Must implement this test after create the real schema
+    });
+
+    it('should fail to update <%= singular(name) %> if the entity is not the same', async () => {
+      const unitBar = await new unitModel({
+        _id: new Types.ObjectId('000000000001'),
+        name: 'BarUnit',
+        organization,
+      }).save();
+      const response<%= singular(classify(name)) %> = await new <%= singular(name) %>Model({ ...<%= singular(name) %>, unit: unitBar, }).save();
+
+      await expect( <%= singular(name) %>Service.update(
+        response<%= singular(classify(name)) %>._id.toString(),
+        { },
+        {
+          policies: [
+            {
+              name: 'FooPolicy',
+              effect: Effect.Allow,
+              actions: [`${<%= singular(classify(name)) %>Scope}:${Update<%= singular(classify(name)) %>}`],
+              resources: ['*'],
+            },
+          ],
+        },
+        unit._id.toString(),
+      )).rejects.toThrow(/No document found for query.*/);
     });
   });
 
@@ -377,7 +488,7 @@ describe('<%= singular(classify(name)) %>Service', () => {
             resources: ['*'],
           },
         ],
-      });
+      }, unit._id.toString(),);
       expect((await <%= singular(name) %>Model.count()).valueOf()).toBe(0);
     });
 
@@ -394,7 +505,7 @@ describe('<%= singular(classify(name)) %>Service', () => {
               resources: ['*'],
             },
           ],
-        }),
+        }, unit._id.toString(),),
       ).rejects.toThrow(`Cannot execute "${Remove<%= singular(classify(name)) %>}" on "${<%= singular(classify(name)) %>Scope}"`);
 
       await expect(
@@ -407,7 +518,7 @@ describe('<%= singular(classify(name)) %>Service', () => {
               resources: ['*'],
             },
           ],
-        }),
+        }, unit._id.toString(),),
       ).rejects.toThrow(`Cannot execute "${Remove<%= singular(classify(name)) %>}" on "${<%= singular(classify(name)) %>Scope}"`);
 
       await expect(
@@ -420,12 +531,38 @@ describe('<%= singular(classify(name)) %>Service', () => {
               resources: ['*'],
             },
           ],
-        }),
+        }, unit._id.toString(),),
       ).rejects.toThrow(`Cannot execute "${Remove<%= singular(classify(name)) %>}" on "${<%= singular(classify(name)) %>Scope}"`);
     });
 
     it('should remove a <%= singular(name) %> based on condition', async () => {
       //TODO Must implement this test after create the real schema
+    });
+
+    it('should fail to remove a <%= singular(name) %> if the entity is not the same', async () => {
+      const unitBar = await new unitModel({
+        _id: new Types.ObjectId('000000000001'),
+        name: 'BarUnit',
+        organization,
+      }).save();
+      await new <%= singular(name) %>Model({ ...<%= singular(name) %>, unit: unitBar }).save();
+
+      await expect(
+        <%= singular(name) %>Service.remove(
+          <%= singular(name) %>._id.toString(), 
+          {
+            policies: [
+              {
+                name: 'FooPolicy',
+                effect: Effect.Allow,
+                actions: [`${<%= singular(classify(name)) %>Scope}:${Remove<%= singular(classify(name)) %>}`],
+                resources: ['*'],
+              },
+            ],
+          },
+          unit._id.toString(),
+        ),
+      ).rejects.toThrow(/No document found for query.*/);
     });
   });
 });

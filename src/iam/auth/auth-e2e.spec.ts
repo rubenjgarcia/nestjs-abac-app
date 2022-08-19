@@ -11,7 +11,11 @@ import { AuthModule } from './auth.module';
 import { E2EUtils } from '../../framework/tests/e2e-utils';
 import { User, UserSchema } from '../users/users.schema';
 import { Policy, PolicySchema } from '../policies/policies.schema';
-import { Group, GroupSchema } from '../groups/groups.schema';
+import { Unit, UnitSchema } from '../units/units.schema';
+import {
+  Organization,
+  OrganizationSchema,
+} from '../organizations/organizations.schema';
 
 describe('Auth e2e', () => {
   let app: INestApplication;
@@ -46,7 +50,18 @@ describe('Auth e2e', () => {
               Policy.name,
               PolicySchema,
             );
-            e2eUtils = new E2EUtils(userModel, policyModel, jwtService);
+            const unitModel = mongoConnection.model(Unit.name, UnitSchema);
+            const organizationModel = mongoConnection.model(
+              Organization.name,
+              OrganizationSchema,
+            );
+            e2eUtils = new E2EUtils(
+              userModel,
+              policyModel,
+              unitModel,
+              organizationModel,
+              jwtService,
+            );
             return { uri };
           },
         }),
@@ -69,8 +84,8 @@ describe('Auth e2e', () => {
     });
 
     describe('POST /auth/login', () => {
-      it('should deny login if no users in database', () => {
-        return request(app.getHttpServer())
+      it('should deny login if no users in database', async () => {
+        await request(app.getHttpServer())
           .post('/auth/login')
           .send({ email: 'foo@example.com', password: 'bar' })
           .expect(401);
@@ -79,7 +94,7 @@ describe('Auth e2e', () => {
       it('should deny login if user is not in database', async () => {
         const user = { email: 'bar@example.com', password: 'bar' };
         await e2eUtils.createUser(user);
-        return request(app.getHttpServer())
+        await request(app.getHttpServer())
           .post('/auth/login')
           .send({ email: 'foo@example.com', password: 'bar' })
           .expect(401);
@@ -88,13 +103,13 @@ describe('Auth e2e', () => {
       it('should deny login if password is wrong', async () => {
         const user = { email: 'foo@example.com', password: 'bar' };
         await e2eUtils.createUser(user);
-        return request(app.getHttpServer())
+        await request(app.getHttpServer())
           .post('/auth/login')
           .send({ email: 'foo@example.com', password: 'baz' })
           .expect(401);
       });
 
-      it('should allow login if is in the database', async () => {
+      it('should allow login if is in the database and password is correct', async () => {
         const user = { email: 'foo@example.com', password: 'bar' };
         await e2eUtils.createUser(user);
         const response = await request(app.getHttpServer())

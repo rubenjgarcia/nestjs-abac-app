@@ -21,8 +21,14 @@ import {
 } from './<%= name %>.actions';
 import { <%= singular(classify(name)) %>, <%= singular(classify(name)) %>Schema } from './<%= name %>.schema';
 import { Create<%= singular(classify(name)) %>Dto } from './dtos/create-<%= singular(name) %>.dto';
+import { Update<%= singular(classify(name)) %>Dto } from './dtos/update-<%= singular(name) %>.dto';
 import { Policy, PolicySchema } from '../iam/policies/policies.schema';
 import { User, UserSchema } from '../iam/users/users.schema';
+import { Unit, UnitSchema } from '../iam/units/units.schema';
+import {
+  Organization,
+  OrganizationSchema,
+} from '../iam/organizations/organizations.schema';
 
 describe('<%= classify(name) %> e2e', () => {
   let app: INestApplication;
@@ -32,8 +38,14 @@ describe('<%= classify(name) %> e2e', () => {
   let mongoConnection: Connection;
 
   const create<%= singular(classify(name)) %> = async (<%= singular(name) %>: Create<%= singular(classify(name)) %>Dto): Promise<<%= singular(classify(name)) %>> => {
-    return await new <%= singular(name) %>Model(<%= singular(name) %>).save();
+    return await new <%= singular(name) %>Model(
+      { ...<%= singular(name) %>,
+      unit: await e2eUtils.getUnit()
+    }).save();
   }
+
+  const create<%= singular(classify(name)) %>Dto: Create<%= singular(classify(name)) %>Dto = {};
+  const update<%= singular(classify(name)) %>Dto: Update<%= singular(classify(name)) %>Dto = {};
 
   beforeAll(async () => {
     mongoose.plugin(accessibleRecordsPlugin);
@@ -67,7 +79,18 @@ describe('<%= classify(name) %> e2e', () => {
               Policy.name,
               PolicySchema,
             );
-            e2eUtils = new E2EUtils(userModel, policyModel, jwtService);
+            const unitModel = mongoConnection.model(Unit.name, UnitSchema);
+            const organizationModel = mongoConnection.model(
+              Organization.name,
+              OrganizationSchema,
+            );
+            e2eUtils = new E2EUtils(
+              userModel,
+              policyModel,
+              unitModel,
+              organizationModel,
+              jwtService,
+            );
             <%= singular(name) %>Model = mongoConnection.model(<%= singular(classify(name)) %>.name, <%= singular(classify(name)) %>Schema);
             return { uri };
           },
@@ -106,7 +129,7 @@ describe('<%= classify(name) %> e2e', () => {
       });
 
       it('should get <%= (name) %> if user has wildcard resource in policy', async () => {
-        await create<%= singular(classify(name)) %>({ });
+        await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -215,7 +238,7 @@ describe('<%= classify(name) %> e2e', () => {
             resources: ['*'],
           },
         );
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>({ });
+        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
         const response = await request(app.getHttpServer())
           .get(`/<%= name %>/${saved<%= singular(classify(name)) %>._id}`)
           .set('Authorization', 'bearer ' + accessToken)
@@ -243,7 +266,7 @@ describe('<%= classify(name) %> e2e', () => {
       });
 
       it('should get <%= singular(name) %> if user has allow effect and the resource is informed with the same id of the policy that is trying to get', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>({ });
+        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -264,7 +287,7 @@ describe('<%= classify(name) %> e2e', () => {
       });
 
       it('should fail to get <%= singular(name) %> if user has deny effect and no wildcard resource in policy', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>({ });
+        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -284,7 +307,7 @@ describe('<%= classify(name) %> e2e', () => {
       });
 
       it('should fail to get <%= singular(name) %> if user has allow effect and the resource is informed with the same id of the polcy that is trying to get and has deny effect with wildcard', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>({ });
+        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -312,7 +335,7 @@ describe('<%= classify(name) %> e2e', () => {
       });
 
       it('should fail to get <%= singular(name) %> if user has allow effect with wildcard and has deny effect and the resource is informed with the same id of the policy that is trying to get', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>({ });
+        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -340,7 +363,7 @@ describe('<%= classify(name) %> e2e', () => {
       });
 
       it('should get <%= singular(name) %> if user has allow effect with wildcard and has deny effect and the resource is informed with different id of the policy that is trying to get', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>({ });
+        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -373,7 +396,7 @@ describe('<%= classify(name) %> e2e', () => {
       it("should fail to create <%= singular(name) %> if user it's not logged in", async () => {
         await request(app.getHttpServer())
           .post('/<%= name %>')
-          .send({ })
+          .send(create<%= singular(classify(name)) %>Dto)
           .expect(401);
       });
 
@@ -384,7 +407,7 @@ describe('<%= classify(name) %> e2e', () => {
         });
         await request(app.getHttpServer())
           .post('/<%= name %>')
-          .send({ })
+          .send(create<%= singular(classify(name)) %>Dto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
@@ -404,7 +427,7 @@ describe('<%= classify(name) %> e2e', () => {
         );
         const response = await request(app.getHttpServer())
           .post('/<%= name %>')
-          .send({ })
+          .send(create<%= singular(classify(name)) %>Dto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(201);
           expect(response.body._id).toBeDefined();
@@ -425,7 +448,7 @@ describe('<%= classify(name) %> e2e', () => {
         );
         await request(app.getHttpServer())
           .post('/<%= name %>')
-          .send({ })
+          .send(create<%= singular(classify(name)) %>Dto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
@@ -439,7 +462,7 @@ describe('<%= classify(name) %> e2e', () => {
       it("should fail to update <%= singular(name) %> if user it's not logged in", async () => {
         await request(app.getHttpServer())
           .put('/<%= name %>/000000000001')
-          .send({ })
+          .send(update<%= singular(classify(name)) %>Dto)
           .expect(401);
       });
 
@@ -450,7 +473,7 @@ describe('<%= classify(name) %> e2e', () => {
         });
         await request(app.getHttpServer())
           .put('/<%= name %>/000000000001')
-          .send({ })
+          .send(update<%= singular(classify(name)) %>Dto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
@@ -468,10 +491,10 @@ describe('<%= classify(name) %> e2e', () => {
             resources: ['*'],
           },
         );
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>({ });
+        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
         const response = await request(app.getHttpServer())
           .put(`/<%= name %>/${saved<%= singular(classify(name)) %>._id}`)
-          .send({ })
+          .send(update<%= singular(classify(name)) %>Dto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(200);
           expect(response.body._id).toBe(saved<%= singular(classify(name)) %>._id.toString());
@@ -492,13 +515,13 @@ describe('<%= classify(name) %> e2e', () => {
         );
         await request(app.getHttpServer())
           .put('/<%= name %>/000000000001')
-          .send({ })
+          .send(update<%= singular(classify(name)) %>Dto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
       it('should update <%= singular(name) %> if user has allow effect and the resource is informed with the same id of the policy that is trying to get', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>({ });
+        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -513,14 +536,14 @@ describe('<%= classify(name) %> e2e', () => {
         );
         const response = await request(app.getHttpServer())
           .put(`/<%= name %>/${saved<%= singular(classify(name)) %>._id._id}`)
-          .send({ })
+          .send(update<%= singular(classify(name)) %>Dto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(200);
           expect(response.body._id).toBeDefined();
       });
 
       it('should fail to update <%= singular(name) %> if user has deny effect and no wildcard resource in policy', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>({ });
+        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -535,13 +558,13 @@ describe('<%= classify(name) %> e2e', () => {
         );
         await request(app.getHttpServer())
           .put(`/<%= name %>/${saved<%= singular(classify(name)) %>._id._id}`)
-          .send({ })
+          .send(create<%= singular(classify(name)) %>Dto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
       it('should fail to update polcy if user has allow effect and the resource is informed with the same id of the polcy that is trying to get and has deny effect with wildcard', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>({ });
+        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -564,13 +587,13 @@ describe('<%= classify(name) %> e2e', () => {
         );
         await request(app.getHttpServer())
           .put(`/<%= name %>/${saved<%= singular(classify(name)) %>._id._id}`)
-          .send({ })
+          .send(create<%= singular(classify(name)) %>Dto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
       it('should fail to update <%= singular(name) %> if user has allow effect with wildcard and has deny effect and the resource is informed with the same id of the policy that is trying to get', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>({ });
+        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -593,13 +616,13 @@ describe('<%= classify(name) %> e2e', () => {
         );
         await request(app.getHttpServer())
           .put(`/<%= name %>/${saved<%= singular(classify(name)) %>._id._id}`)
-          .send({ })
+          .send(create<%= singular(classify(name)) %>Dto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
       it('should update <%= singular(name) %> if user has allow effect with wildcard and has deny effect and the resource is informed with different id of the policy that is trying to get', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>({ });
+        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -622,7 +645,7 @@ describe('<%= classify(name) %> e2e', () => {
         );
         const response = await request(app.getHttpServer())
           .put(`/<%= name %>/${saved<%= singular(classify(name)) %>._id._id}`)
-          .send({ })
+          .send(update<%= singular(classify(name)) %>Dto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(200);
           expect(response.body._id).toBeDefined();
@@ -664,7 +687,7 @@ describe('<%= classify(name) %> e2e', () => {
             resources: ['*'],
           },
         );
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>({ });
+        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
         await request(app.getHttpServer())
           .delete(`/<%= name %>/${saved<%= singular(classify(name)) %>._id._id}`)
           .set('Authorization', 'bearer ' + accessToken)
@@ -691,7 +714,7 @@ describe('<%= classify(name) %> e2e', () => {
       });
 
       it('should remove <%= singular(name) %> if user has allow effect and the resource is informed with the same id of the policy that is trying to get', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>({ });
+        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -711,7 +734,7 @@ describe('<%= classify(name) %> e2e', () => {
       });
 
       it('should fail to remove <%= singular(name) %> if user has deny effect and no wildcard resource in policy', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>({ });
+        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -731,7 +754,7 @@ describe('<%= classify(name) %> e2e', () => {
       });
 
       it('should fail to remove polcy if user has allow effect and the resource is informed with the same id of the polcy that is trying to get and has deny effect with wildcard', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>({ });
+        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -759,7 +782,7 @@ describe('<%= classify(name) %> e2e', () => {
       });
 
       it('should fail to remove <%= singular(name) %> if user has allow effect with wildcard and has deny effect and the resource is informed with the same id of the policy that is trying to get', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>({ });
+        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -787,7 +810,7 @@ describe('<%= classify(name) %> e2e', () => {
       });
 
       it('should remove <%= singular(name) %> if user has allow effect with wildcard and has deny effect and the resource is informed with different id of the policy that is trying to get', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>({ });
+        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',

@@ -9,7 +9,6 @@ import {
   Put,
   Req,
 } from '@nestjs/common';
-import { Request } from 'express';
 import { UserService } from './users.service';
 import { User } from './users.schema';
 import { CreateUserDto } from './dtos/create-user.dto';
@@ -34,24 +33,25 @@ export class UserController {
   @CheckPolicies(new CreateUsersPolicyHandler())
   async create(
     @Body() createUserDto: CreateUserDto,
-    @Req() request: Request,
+    @Req() request: any,
   ): Promise<User> {
-    return await this.userService.create(createUserDto, request.user);
+    return await this.userService.create(
+      createUserDto,
+      request.user,
+      request.user.unitId,
+    );
   }
 
   @Get()
   @CheckPolicies(new ListUsersPolicyHandler())
-  async findAll(@Req() request: Request): Promise<User[]> {
-    return this.userService.findAll(request.user);
+  async findAll(@Req() request: any): Promise<User[]> {
+    return this.userService.findAll(request.user, request.user.unitId);
   }
 
   @Get(':id')
   @CheckPolicies(new GetUserPolicyHandler('id'))
-  async findOne(
-    @Param('id') id: string,
-    @Req() request: Request,
-  ): Promise<User> {
-    return this.userService.findOne(id, request.user);
+  async findOne(@Param('id') id: string, @Req() request: any): Promise<User> {
+    return this.userService.findOne(id, request.user, request.user.unitId);
   }
 
   @Put(':id')
@@ -59,15 +59,20 @@ export class UserController {
   async update(
     @Param('id') id: string,
     @Body() updateUserDto: UpdateUserDto,
-    @Req() request: Request,
+    @Req() request: any,
   ): Promise<User> {
-    return this.userService.update(id, updateUserDto, request.user);
+    return this.userService.update(
+      id,
+      updateUserDto,
+      request.user,
+      request.user.unitId,
+    );
   }
 
   @Delete(':id')
   @CheckPolicies(new RemoveUserPolicyHandler('id'))
-  remove(@Param('id') id: string, @Req() request: Request) {
-    return this.userService.remove(id, request.user);
+  remove(@Param('id') id: string, @Req() request: any) {
+    return this.userService.remove(id, request.user, request.user.unitId);
   }
 
   @Post(':id/group/:groupId')
@@ -75,8 +80,13 @@ export class UserController {
   async addGroupToUser(
     @Param('id') id: string,
     @Param('groupId') groupId: string,
-    @Req() request: Request,
+    @Req() request: any,
   ): Promise<User> {
-    return await this.userService.addGroupToUser(id, groupId, request.user);
+    return await this.userService.addGroupToUser(
+      id,
+      groupId,
+      request.user,
+      request.user.unitId,
+    );
   }
 }

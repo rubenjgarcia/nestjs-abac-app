@@ -28,6 +28,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       userId: payload.sub,
       email: payload.email,
+      unitId: user.unit._id.toString(),
+      organizationId: user.unit.organization._id.toString(),
       policies: [...userPolicies, ...groupPolicies],
     };
   }

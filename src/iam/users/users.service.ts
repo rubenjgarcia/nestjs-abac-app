@@ -2,13 +2,13 @@ import * as bcrypt from 'bcrypt';
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { AccessibleRecordModel } from '@casl/mongoose';
-import { Types } from 'mongoose';
+import { Types, Error } from 'mongoose';
 import { User, UserDocument } from './users.schema';
+import { WithPolicies } from '../../framework/factories/casl-ability.factory';
+import { CrudService } from '../../framework/crud.service';
 import { CreateUserDto } from './dtos/create-user.dto';
 import { UpdateUserDto } from './dtos/update-user.dto';
-import { WithPolicies } from '../../framework/factories/casl-ability.factory';
 import { AddGroupToUser, UserCrudActions } from './users.actions';
-import { CrudService } from '../../framework/crud.service';
 import { Group, GroupDocument } from '../groups/groups.schema';
 
 @Injectable()
@@ -25,29 +25,39 @@ export class UserService extends CrudService<UserDocument> {
   async create(
     createUserDto: CreateUserDto,
     withPolicies: WithPolicies,
+    unitId: string,
   ): Promise<UserDocument> {
     const hash = await bcrypt.hash(createUserDto.password, 10);
     const userResponse = await super.create(
       {
         ...createUserDto,
         password: hash,
+        unit: { id: new Types.ObjectId(unitId) },
       },
       withPolicies,
+      unitId,
     );
     userResponse.password = undefined;
     userResponse.policies = undefined;
     return userResponse;
   }
 
-  async findAll(withPolicies: WithPolicies): Promise<UserDocument[]> {
-    return await super.findAll(withPolicies, {
+  async findAll(
+    withPolicies: WithPolicies,
+    unitId: string,
+  ): Promise<UserDocument[]> {
+    return await super.findAll(withPolicies, unitId, {
       password: false,
       policies: false,
     });
   }
 
-  async findOne(id: string, withPolicies: WithPolicies): Promise<UserDocument> {
-    return await super.findOne(id, withPolicies, {
+  async findOne(
+    id: string,
+    withPolicies: WithPolicies,
+    unitId: string,
+  ): Promise<UserDocument> {
+    return await super.findOne(id, withPolicies, unitId, {
       password: false,
       policies: false,
     });
@@ -57,15 +67,28 @@ export class UserService extends CrudService<UserDocument> {
     id: string,
     updateUserDto: UpdateUserDto,
     withPolicies: WithPolicies,
+    unitId: string,
   ): Promise<UserDocument> {
-    return await super.update(id, updateUserDto, withPolicies, {
+    return await super.update(id, updateUserDto, withPolicies, unitId, {
       password: false,
       policies: false,
     });
   }
 
-  async findOneWithPassword(email: string): Promise<User> {
-    return await this.model.findOne({ email }).select({ policies: false });
+  async findOneByEmailAndPassword(
+    email: string,
+    password: string,
+  ): Promise<User> {
+    const user = await this.model
+      .findOne({ email })
+      .select({ policies: false })
+      .populate('unit');
+    if (user) {
+      const passwordMatch = await bcrypt.compare(password, user.password);
+      return passwordMatch ? { ...user.toObject(), password: null } : null;
+    }
+
+    return null;
   }
 
   async findOneWithPolicies(email: string): Promise<User> {
@@ -75,6 +98,7 @@ export class UserService extends CrudService<UserDocument> {
       .populate([
         { path: 'policies' },
         { path: 'groups', populate: { path: 'policies' } },
+        { path: 'unit' },
       ]);
   }
 
@@ -82,8 +106,14 @@ export class UserService extends CrudService<UserDocument> {
     id: string,
     groupId: string,
     withPolicies: WithPolicies,
+    unitId: string,
   ): Promise<UserDocument> {
-    const group = await this.groupModel.findById(new Types.ObjectId(groupId));
+    const group = await this.groupModel
+      .findOne({
+        _id: new Types.ObjectId(groupId),
+        unit: new Types.ObjectId(unitId),
+      })
+      .orFail(new Error.DocumentNotFoundError('Group not found'));
     const ability = this.caslAbilityFactory.createWithPolicies(withPolicies);
     await this.model
       .accessibleBy(ability, AddGroupToUser)

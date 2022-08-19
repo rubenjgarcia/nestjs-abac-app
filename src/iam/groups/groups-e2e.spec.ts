@@ -21,8 +21,14 @@ import {
 } from './groups.actions';
 import { Group, GroupSchema } from './groups.schema';
 import { CreateGroupDto } from './dtos/create-group.dto';
+import { UpdateGroupDto } from './dtos/update-group.dto';
 import { Policy, PolicySchema } from '../policies/policies.schema';
 import { User, UserSchema } from '../users/users.schema';
+import { Unit, UnitSchema } from '../units/units.schema';
+import {
+  Organization,
+  OrganizationSchema,
+} from '../organizations/organizations.schema';
 
 describe('Groups e2e', () => {
   let app: INestApplication;
@@ -32,8 +38,14 @@ describe('Groups e2e', () => {
   let mongoConnection: Connection;
 
   const createGroup = async (group: CreateGroupDto): Promise<Group> => {
-    return await new groupModel(group).save();
+    return await new groupModel({
+      ...group,
+      unit: await e2eUtils.getUnit(),
+    }).save();
   };
+
+  const createGroupDto: CreateGroupDto = { name: 'FooGroup' };
+  const updateGroupDto: UpdateGroupDto = { name: 'BarGroup' };
 
   beforeAll(async () => {
     mongoose.plugin(accessibleRecordsPlugin);
@@ -47,7 +59,6 @@ describe('Groups e2e', () => {
             MongooseModule.forFeature([
               { name: User.name, schema: UserSchema },
               { name: Policy.name, schema: PolicySchema },
-              { name: Group.name, schema: GroupSchema },
             ]),
             JwtModule.registerAsync({
               imports: [ConfigModule],
@@ -68,7 +79,18 @@ describe('Groups e2e', () => {
               Policy.name,
               PolicySchema,
             );
-            e2eUtils = new E2EUtils(userModel, policyModel, jwtService);
+            const unitModel = mongoConnection.model(Unit.name, UnitSchema);
+            const organizationModel = mongoConnection.model(
+              Organization.name,
+              OrganizationSchema,
+            );
+            e2eUtils = new E2EUtils(
+              userModel,
+              policyModel,
+              unitModel,
+              organizationModel,
+              jwtService,
+            );
             groupModel = mongoConnection.model(Group.name, GroupSchema);
             return { uri };
           },
@@ -107,7 +129,7 @@ describe('Groups e2e', () => {
       });
 
       it('should get groups if user has wildcard resource in policy', async () => {
-        await createGroup({ name: 'FooGroup' });
+        await createGroup(createGroupDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -126,7 +148,7 @@ describe('Groups e2e', () => {
           .expect(200);
         expect(response.body.length).toBe(1);
         expect(response.body[0]._id).toBeDefined();
-        expect(response.body[0].name).toBe('FooGroup');
+        expect(response.body[0].name).toBe(createGroupDto.name);
       });
 
       it('should fail to get groups if user has no wildcard resource in policy', async () => {
@@ -218,13 +240,13 @@ describe('Groups e2e', () => {
             resources: ['*'],
           },
         );
-        const savedGroup = await createGroup({ name: 'FooGroup' });
+        const savedGroup = await createGroup(createGroupDto);
         const response = await request(app.getHttpServer())
           .get(`/iam/groups/${savedGroup._id}`)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(200);
         expect(response.body._id).toBeDefined();
-        expect(response.body.name).toBe('FooGroup');
+        expect(response.body.name).toBe(createGroupDto.name);
       });
 
       it('should fail to get group if user has deny effect and wildcard resource in policy', async () => {
@@ -247,7 +269,7 @@ describe('Groups e2e', () => {
       });
 
       it('should get group if user has allow effect and the resource is informed with the same id of the policy that is trying to get', async () => {
-        const savedGroup = await createGroup({ name: 'FooGroup' });
+        const savedGroup = await createGroup(createGroupDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -265,11 +287,11 @@ describe('Groups e2e', () => {
           .set('Authorization', 'bearer ' + accessToken)
           .expect(200);
         expect(response.body._id).toBeDefined();
-        expect(response.body.name).toBe('FooGroup');
+        expect(response.body.name).toBe(createGroupDto.name);
       });
 
       it('should fail to get group if user has deny effect and no wildcard resource in policy', async () => {
-        const savedGroup = await createGroup({ name: 'FooGroup' });
+        const savedGroup = await createGroup(createGroupDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -289,7 +311,7 @@ describe('Groups e2e', () => {
       });
 
       it('should fail to get group if user has allow effect and the resource is informed with the same id of the polcy that is trying to get and has deny effect with wildcard', async () => {
-        const savedGroup = await createGroup({ name: 'FooGroup' });
+        const savedGroup = await createGroup(createGroupDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -317,7 +339,7 @@ describe('Groups e2e', () => {
       });
 
       it('should fail to get group if user has allow effect with wildcard and has deny effect and the resource is informed with the same id of the policy that is trying to get', async () => {
-        const savedGroup = await createGroup({ name: 'FooGroup' });
+        const savedGroup = await createGroup(createGroupDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -345,7 +367,7 @@ describe('Groups e2e', () => {
       });
 
       it('should get group if user has allow effect with wildcard and has deny effect and the resource is informed with different id of the policy that is trying to get', async () => {
-        const savedGroup = await createGroup({ name: 'FooGroup' });
+        const savedGroup = await createGroup(createGroupDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -371,7 +393,7 @@ describe('Groups e2e', () => {
           .set('Authorization', 'bearer ' + accessToken)
           .expect(200);
         expect(response.body._id).toBeDefined();
-        expect(response.body.name).toBe('FooGroup');
+        expect(response.body.name).toBe(createGroupDto.name);
       });
     });
 
@@ -379,7 +401,7 @@ describe('Groups e2e', () => {
       it("should fail to create group if user it's not logged in", async () => {
         await request(app.getHttpServer())
           .post('/iam/groups')
-          .send({ name: 'FooGroup' })
+          .send(createGroupDto)
           .expect(401);
       });
 
@@ -390,7 +412,7 @@ describe('Groups e2e', () => {
         });
         await request(app.getHttpServer())
           .post('/iam/groups')
-          .send({ name: 'FooGroup' })
+          .send(createGroupDto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
@@ -410,11 +432,11 @@ describe('Groups e2e', () => {
         );
         const response = await request(app.getHttpServer())
           .post('/iam/groups')
-          .send({ name: 'FooGroup' })
+          .send(createGroupDto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(201);
         expect(response.body._id).toBeDefined();
-        expect(response.body.name).toBe('FooGroup');
+        expect(response.body.name).toBe(createGroupDto.name);
       });
 
       it('should fail to create group if user has resource informed in policy', async () => {
@@ -432,7 +454,7 @@ describe('Groups e2e', () => {
         );
         await request(app.getHttpServer())
           .post('/iam/groups')
-          .send({ name: 'FooGroup' })
+          .send(createGroupDto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
@@ -465,7 +487,7 @@ describe('Groups e2e', () => {
       it("should fail to update group if user it's not logged in", async () => {
         await request(app.getHttpServer())
           .put('/iam/groups/000000000001')
-          .send({ name: 'BarGroup' })
+          .send(updateGroupDto)
           .expect(401);
       });
 
@@ -476,7 +498,7 @@ describe('Groups e2e', () => {
         });
         await request(app.getHttpServer())
           .put('/iam/groups/000000000001')
-          .send({ name: 'BarGroup' })
+          .send(updateGroupDto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
@@ -494,14 +516,14 @@ describe('Groups e2e', () => {
             resources: ['*'],
           },
         );
-        const savedGroup = await createGroup({ name: 'FooGroup' });
+        const savedGroup = await createGroup(createGroupDto);
         const response = await request(app.getHttpServer())
           .put(`/iam/groups/${savedGroup._id}`)
-          .send({ name: 'BarGroup' })
+          .send(updateGroupDto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(200);
         expect(response.body._id).toBe(savedGroup._id.toString());
-        expect(response.body.name).toBe('BarGroup');
+        expect(response.body.name).toBe(updateGroupDto.name);
       });
 
       it('should fail to update group if user has deny effect and wildcard resource in policy', async () => {
@@ -519,13 +541,13 @@ describe('Groups e2e', () => {
         );
         await request(app.getHttpServer())
           .put('/iam/groups/000000000001')
-          .send({ name: 'BarGroup' })
+          .send(updateGroupDto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
       it('should update group if user has allow effect and the resource is informed with the same id of the policy that is trying to get', async () => {
-        const savedGroup = await createGroup({ name: 'FooGroup' });
+        const savedGroup = await createGroup(createGroupDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -540,15 +562,15 @@ describe('Groups e2e', () => {
         );
         const response = await request(app.getHttpServer())
           .put(`/iam/groups/${savedGroup._id._id}`)
-          .send({ name: 'BarGroup' })
+          .send(updateGroupDto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(200);
         expect(response.body._id).toBeDefined();
-        expect(response.body.name).toBe('BarGroup');
+        expect(response.body.name).toBe(updateGroupDto.name);
       });
 
       it('should fail to update group if user has deny effect and no wildcard resource in policy', async () => {
-        const savedGroup = await createGroup({ name: 'FooGroup' });
+        const savedGroup = await createGroup(createGroupDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -563,13 +585,13 @@ describe('Groups e2e', () => {
         );
         await request(app.getHttpServer())
           .put(`/iam/groups/${savedGroup._id._id}`)
-          .send({ name: 'BarGroup' })
+          .send(createGroupDto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
       it('should fail to update polcy if user has allow effect and the resource is informed with the same id of the polcy that is trying to get and has deny effect with wildcard', async () => {
-        const savedGroup = await createGroup({ name: 'FooGroup' });
+        const savedGroup = await createGroup(createGroupDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -592,13 +614,13 @@ describe('Groups e2e', () => {
         );
         await request(app.getHttpServer())
           .put(`/iam/groups/${savedGroup._id._id}`)
-          .send({ name: 'BarGroup' })
+          .send(createGroupDto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
       it('should fail to update group if user has allow effect with wildcard and has deny effect and the resource is informed with the same id of the policy that is trying to get', async () => {
-        const savedGroup = await createGroup({ name: 'FooGroup' });
+        const savedGroup = await createGroup(createGroupDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -621,13 +643,13 @@ describe('Groups e2e', () => {
         );
         await request(app.getHttpServer())
           .put(`/iam/groups/${savedGroup._id._id}`)
-          .send({ name: 'BarGroup' })
+          .send(createGroupDto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
       it('should update group if user has allow effect with wildcard and has deny effect and the resource is informed with different id of the policy that is trying to get', async () => {
-        const savedGroup = await createGroup({ name: 'FooGroup' });
+        const savedGroup = await createGroup(createGroupDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -650,11 +672,11 @@ describe('Groups e2e', () => {
         );
         const response = await request(app.getHttpServer())
           .put(`/iam/groups/${savedGroup._id._id}`)
-          .send({ name: 'BarGroup' })
+          .send(updateGroupDto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(200);
         expect(response.body._id).toBeDefined();
-        expect(response.body.name).toBe('BarGroup');
+        expect(response.body.name).toBe(updateGroupDto.name);
       });
 
       it('should fail to update group if the fields are not correct', async () => {
@@ -713,7 +735,7 @@ describe('Groups e2e', () => {
             resources: ['*'],
           },
         );
-        const savedGroup = await createGroup({ name: 'FooGroup' });
+        const savedGroup = await createGroup(createGroupDto);
         await request(app.getHttpServer())
           .delete(`/iam/groups/${savedGroup._id._id}`)
           .set('Authorization', 'bearer ' + accessToken)
@@ -740,7 +762,7 @@ describe('Groups e2e', () => {
       });
 
       it('should remove group if user has allow effect and the resource is informed with the same id of the policy that is trying to get', async () => {
-        const savedGroup = await createGroup({ name: 'FooGroup' });
+        const savedGroup = await createGroup(createGroupDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -760,7 +782,7 @@ describe('Groups e2e', () => {
       });
 
       it('should fail to remove group if user has deny effect and no wildcard resource in policy', async () => {
-        const savedGroup = await createGroup({ name: 'FooGroup' });
+        const savedGroup = await createGroup(createGroupDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -780,7 +802,7 @@ describe('Groups e2e', () => {
       });
 
       it('should fail to remove polcy if user has allow effect and the resource is informed with the same id of the polcy that is trying to get and has deny effect with wildcard', async () => {
-        const savedGroup = await createGroup({ name: 'FooGroup' });
+        const savedGroup = await createGroup(createGroupDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -808,7 +830,7 @@ describe('Groups e2e', () => {
       });
 
       it('should fail to remove group if user has allow effect with wildcard and has deny effect and the resource is informed with the same id of the policy that is trying to get', async () => {
-        const savedGroup = await createGroup({ name: 'FooGroup' });
+        const savedGroup = await createGroup(createGroupDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -836,7 +858,7 @@ describe('Groups e2e', () => {
       });
 
       it('should remove group if user has allow effect with wildcard and has deny effect and the resource is informed with different id of the policy that is trying to get', async () => {
-        const savedGroup = await createGroup({ name: 'FooGroup' });
+        const savedGroup = await createGroup(createGroupDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',

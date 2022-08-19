@@ -8,9 +8,10 @@ import {
 } from './factories/casl-ability.factory';
 import { CreateDto, UpdateDto } from './dtos';
 import { CrudActions } from './actions';
+import { Entity } from './entity';
 
 @Injectable()
-export abstract class CrudService<T extends Document> {
+export abstract class CrudService<T extends Document & Entity> {
   @Inject()
   readonly caslAbilityFactory: CaslAbilityFactory;
 
@@ -19,22 +20,32 @@ export abstract class CrudService<T extends Document> {
     readonly crudActions: CrudActions,
   ) {}
 
-  async create(createDto: CreateDto, withPolicies: WithPolicies): Promise<T> {
+  async create(
+    createDto: CreateDto,
+    withPolicies: WithPolicies,
+    unitId: string,
+  ): Promise<T> {
     const ability = this.caslAbilityFactory.createWithPolicies(withPolicies);
     ForbiddenError.from(ability).throwUnlessCan(
       this.crudActions.createAction,
-      subject(this.crudActions.scope, createDto),
+      subject(this.crudActions.scope, {
+        ...createDto,
+      }),
     );
-    return await this.model.create(createDto);
+    return await this.model.create({
+      ...createDto,
+      unit: new Types.ObjectId(unitId),
+    });
   }
 
   async findAll(
     withPolicies: WithPolicies,
+    unitId: string,
     select?: string | any,
   ): Promise<T[]> {
     const ability = this.caslAbilityFactory.createWithPolicies(withPolicies);
     return this.model
-      .find()
+      .find({ unit: new Types.ObjectId(unitId) })
       .accessibleBy(ability, this.crudActions.listAction)
       .select(select);
   }
@@ -42,12 +53,16 @@ export abstract class CrudService<T extends Document> {
   async findOne(
     id: string,
     withPolicies: WithPolicies,
+    unitId: string,
     select?: string | any,
   ): Promise<T> {
     const ability = this.caslAbilityFactory.createWithPolicies(withPolicies);
     return await this.model
       .accessibleBy(ability, this.crudActions.getAction)
-      .findOne({ _id: new Types.ObjectId(id) })
+      .findOne({
+        _id: new Types.ObjectId(id),
+        unit: new Types.ObjectId(unitId),
+      })
       .orFail()
       .select(select);
   }
@@ -56,13 +71,14 @@ export abstract class CrudService<T extends Document> {
     id: string,
     updateDto: UpdateDto,
     withPolicies: WithPolicies,
+    unitId: string,
     select?: string | any,
   ): Promise<T> {
     const ability = this.caslAbilityFactory.createWithPolicies(withPolicies);
     return await this.model
       .accessibleBy(ability, this.crudActions.updateAction)
       .findOneAndUpdate(
-        { _id: new Types.ObjectId(id) },
+        { _id: new Types.ObjectId(id), unit: new Types.ObjectId(unitId) },
         { $set: updateDto },
         { new: true },
       )
@@ -70,11 +86,18 @@ export abstract class CrudService<T extends Document> {
       .select(select);
   }
 
-  async remove(id: string, withPolicies: WithPolicies): Promise<void> {
+  async remove(
+    id: string,
+    withPolicies: WithPolicies,
+    unitId: string,
+  ): Promise<void> {
     const ability = this.caslAbilityFactory.createWithPolicies(withPolicies);
     await this.model
       .accessibleBy(ability, this.crudActions.removeAction)
-      .findOneAndDelete({ _id: new Types.ObjectId(id) })
+      .findOneAndDelete({
+        _id: new Types.ObjectId(id),
+        unit: new Types.ObjectId(unitId),
+      })
       .orFail();
   }
 }

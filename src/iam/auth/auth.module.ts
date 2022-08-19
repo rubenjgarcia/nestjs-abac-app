@@ -19,6 +19,8 @@ import { PoliciesGuard } from '../../framework/guards/policies.guard';
 import { UserService } from '../users/users.service';
 import { UsersModule } from '../users/users.module';
 import { GroupsModule } from '../groups/groups.module';
+import { UnitsModule } from '../units/units.module';
+import { OrganizationsModule } from '../organizations/organizations.module';
 
 @Module({
   imports: [
@@ -33,6 +35,8 @@ import { GroupsModule } from '../groups/groups.module';
     }),
     UsersModule,
     GroupsModule,
+    UnitsModule,
+    OrganizationsModule,
     FrameworkModule,
   ],
   controllers: [AuthController],

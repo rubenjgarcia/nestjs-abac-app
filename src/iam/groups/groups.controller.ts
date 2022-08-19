@@ -9,7 +9,6 @@ import {
   Put,
   Req,
 } from '@nestjs/common';
-import { Request } from 'express';
 import { GroupService } from './groups.service';
 import { Group } from './groups.schema';
 import { CreateGroupDto } from './dtos/create-group.dto';
@@ -33,24 +32,25 @@ export class GroupController {
   @CheckPolicies(new CreateGroupPolicyHandler())
   async create(
     @Body() createGroupDto: CreateGroupDto,
-    @Req() request: Request,
+    @Req() request: any,
   ): Promise<Group> {
-    return await this.groupService.create(createGroupDto, request.user);
+    return await this.groupService.create(
+      createGroupDto,
+      request.user,
+      request.user.unitId,
+    );
   }
 
   @Get()
   @CheckPolicies(new ListGroupsPolicyHandler())
-  async findAll(@Req() request: Request): Promise<Group[]> {
-    return this.groupService.findAll(request.user);
+  async findAll(@Req() request: any): Promise<Group[]> {
+    return this.groupService.findAll(request.user, request.user.unitId);
   }
 
   @Get(':id')
   @CheckPolicies(new GetGroupPolicyHandler('id'))
-  async findOne(
-    @Param('id') id: string,
-    @Req() request: Request,
-  ): Promise<Group> {
-    return this.groupService.findOne(id, request.user);
+  async findOne(@Param('id') id: string, @Req() request: any): Promise<Group> {
+    return this.groupService.findOne(id, request.user, request.user.unitId);
   }
 
   @Put(':id')
@@ -58,14 +58,19 @@ export class GroupController {
   async update(
     @Param('id') id: string,
     @Body() updateGroupDto: UpdateGroupDto,
-    @Req() request: Request,
+    @Req() request: any,
   ): Promise<Group> {
-    return this.groupService.update(id, updateGroupDto, request.user);
+    return this.groupService.update(
+      id,
+      updateGroupDto,
+      request.user,
+      request.user.unitId,
+    );
   }
 
   @Delete(':id')
   @CheckPolicies(new RemoveGroupPolicyHandler('id'))
-  remove(@Param('id') id: string, @Req() request: Request) {
-    return this.groupService.remove(id, request.user);
+  remove(@Param('id') id: string, @Req() request: any) {
+    return this.groupService.remove(id, request.user, request.user.unitId);
   }
 }

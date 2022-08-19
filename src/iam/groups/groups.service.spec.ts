@@ -17,25 +17,24 @@ import {
   RemoveGroup,
   UpdateGroup,
 } from './groups.actions';
+import { Unit, UnitSchema } from '../units/units.schema';
+import {
+  Organization,
+  OrganizationSchema,
+} from '../organizations/organizations.schema';
 
 describe('GroupService', () => {
   let groupService: GroupService;
   let mongod: MongoMemoryServer;
   let mongoConnection: Connection;
   let groupModel: Model<Group>;
+  let organizationModel: Model<Organization>;
+  let unitModel: Model<Unit>;
 
-  const group: Group = {
-    _id: new Types.ObjectId('000000000000'),
-    name: 'FooGroup',
-  };
-
-  const groups: Group[] = [
-    group,
-    {
-      _id: new Types.ObjectId('000000000001'),
-      name: 'BarGroup',
-    },
-  ];
+  let organization: Organization;
+  let unit: Unit;
+  let group: Group;
+  let group2: Group;
 
   beforeAll(async () => {
     mongoose.plugin(accessibleRecordsPlugin);
@@ -43,6 +42,11 @@ describe('GroupService', () => {
     const uri = mongod.getUri();
     mongoConnection = (await connect(uri)).connection;
     groupModel = mongoConnection.model(Group.name, GroupSchema);
+    organizationModel = mongoConnection.model(
+      Organization.name,
+      OrganizationSchema,
+    );
+    unitModel = mongoConnection.model(Unit.name, UnitSchema);
     const module = await Test.createTestingModule({
       providers: [
         GroupService,
@@ -58,6 +62,28 @@ describe('GroupService', () => {
     await mongoConnection.dropDatabase();
     await mongoConnection.close();
     await mongod.stop();
+  });
+
+  beforeEach(async () => {
+    organization = await new organizationModel({
+      _id: new Types.ObjectId('000000000000'),
+      name: 'FooOrganization',
+    }).save();
+    unit = await new unitModel({
+      _id: new Types.ObjectId('000000000000'),
+      name: 'FooUnit',
+      organization,
+    }).save();
+    group = {
+      _id: new Types.ObjectId('000000000000'),
+      name: 'FooGroup',
+      unit,
+    };
+    group2 = {
+      _id: new Types.ObjectId('000000000001'),
+      name: 'BarGroup',
+      unit,
+    };
   });
 
   afterEach(async () => {
@@ -78,8 +104,10 @@ describe('GroupService', () => {
             },
           ],
         },
+        unit._id.toString(),
       );
       expect(responseGroup.id).toBeDefined();
+      expect(responseGroup.unit).toBeDefined();
     });
 
     it('should create a group with condition', async () => {
@@ -95,8 +123,10 @@ describe('GroupService', () => {
             },
           ],
         },
+        unit._id.toString(),
       );
       expect(responseGroup.id).toBeDefined();
+      expect(responseGroup.unit).toBeDefined();
     });
 
     it('should fail to create a group if the policies are incorrect', async () => {
@@ -113,6 +143,7 @@ describe('GroupService', () => {
               },
             ],
           },
+          unit._id.toString(),
         ),
       ).rejects.toThrow(`Cannot execute "${CreateGroup}" on "${GroupScope}"`);
 
@@ -129,6 +160,7 @@ describe('GroupService', () => {
               },
             ],
           },
+          unit._id.toString(),
         ),
       ).rejects.toThrow(`Cannot execute "${CreateGroup}" on "${GroupScope}"`);
 
@@ -145,6 +177,7 @@ describe('GroupService', () => {
               },
             ],
           },
+          unit._id.toString(),
         ),
       ).rejects.toThrow(`Cannot execute "${CreateGroup}" on "${GroupScope}"`);
     });
@@ -153,191 +186,268 @@ describe('GroupService', () => {
   describe('findOne', () => {
     it('should return a group', async () => {
       await new groupModel(group).save();
-      const responseGroup = await groupService.findOne(group._id.toString(), {
-        policies: [
-          {
-            name: 'FooPolicy',
-            effect: Effect.Allow,
-            actions: [`${GroupScope}:${GetGroup}`],
-            resources: ['*'],
-          },
-        ],
-      });
+      const responseGroup = await groupService.findOne(
+        group._id.toString(),
+        {
+          policies: [
+            {
+              name: 'FooPolicy',
+              effect: Effect.Allow,
+              actions: [`${GroupScope}:${GetGroup}`],
+              resources: ['*'],
+            },
+          ],
+        },
+        unit._id.toString(),
+      );
       expect(responseGroup.id).toBeDefined();
+      expect(responseGroup.unit).toBeDefined();
       expect(responseGroup.name).toBe(group.name);
     });
 
     it('should fail to get a group if the policies are incorrect', async () => {
       await new groupModel(group).save();
       await expect(
-        groupService.findOne(group._id.toString(), {
-          policies: [
-            {
-              name: 'FooPolicy',
-              effect: Effect.Deny,
-              actions: [`${GroupScope}:${GetGroup}`],
-              resources: ['*'],
-            },
-          ],
-        }),
+        groupService.findOne(
+          group._id.toString(),
+          {
+            policies: [
+              {
+                name: 'FooPolicy',
+                effect: Effect.Deny,
+                actions: [`${GroupScope}:${GetGroup}`],
+                resources: ['*'],
+              },
+            ],
+          },
+          unit._id.toString(),
+        ),
       ).rejects.toThrow(`Cannot execute "${GetGroup}" on "${GroupScope}"`);
 
       await expect(
-        groupService.findOne(group._id.toString(), {
-          policies: [
-            {
-              name: 'FooPolicy',
-              effect: Effect.Allow,
-              actions: [`Foo:${GetGroup}`],
-              resources: ['*'],
-            },
-          ],
-        }),
+        groupService.findOne(
+          group._id.toString(),
+          {
+            policies: [
+              {
+                name: 'FooPolicy',
+                effect: Effect.Allow,
+                actions: [`Foo:${GetGroup}`],
+                resources: ['*'],
+              },
+            ],
+          },
+          unit._id.toString(),
+        ),
       ).rejects.toThrow(`Cannot execute "${GetGroup}" on "${GroupScope}"`);
 
       await expect(
-        groupService.findOne(group._id.toString(), {
-          policies: [
-            {
-              name: 'FooPolicy',
-              effect: Effect.Allow,
-              actions: [`${GroupScope}:Action`],
-              resources: ['*'],
-            },
-          ],
-        }),
+        groupService.findOne(
+          group._id.toString(),
+          {
+            policies: [
+              {
+                name: 'FooPolicy',
+                effect: Effect.Allow,
+                actions: [`${GroupScope}:Action`],
+                resources: ['*'],
+              },
+            ],
+          },
+          unit._id.toString(),
+        ),
       ).rejects.toThrow(`Cannot execute "${GetGroup}" on "${GroupScope}"`);
     });
 
     it('should get a group based on condition', async () => {
       await new groupModel(group).save();
-      const responseGroup = await groupService.findOne(group._id.toString(), {
-        policies: [
-          {
-            name: 'FooPolicy',
-            effect: Effect.Allow,
-            actions: [`${GroupScope}:${GetGroup}`],
-            resources: ['*'],
-            condition: { StringEquals: { name: 'FooGroup' } },
-          },
-        ],
-      });
-      expect(responseGroup.id).toBeDefined();
-      expect(responseGroup.name).toBe(group.name);
-
-      await expect(
-        groupService.findOne(group._id.toString(), {
+      const responseGroup = await groupService.findOne(
+        group._id.toString(),
+        {
           policies: [
             {
               name: 'FooPolicy',
               effect: Effect.Allow,
               actions: [`${GroupScope}:${GetGroup}`],
               resources: ['*'],
-              condition: { StringEquals: { name: 'BarGroup' } },
+              condition: { StringEquals: { name: 'FooGroup' } },
             },
           ],
-        }),
+        },
+        unit._id.toString(),
+      );
+      expect(responseGroup.id).toBeDefined();
+      expect(responseGroup.unit).toBeDefined();
+      expect(responseGroup.name).toBe(group.name);
+    });
+
+    it('should fail to return a group if the unit is not the same', async () => {
+      const unitBar = await new unitModel({
+        _id: new Types.ObjectId('000000000001'),
+        name: 'BarUnit',
+        organization,
+      }).save();
+      await new groupModel({ ...group, unit: unitBar }).save();
+      await expect(
+        groupService.findOne(
+          group._id.toString(),
+          {
+            policies: [
+              {
+                name: 'FooPolicy',
+                effect: Effect.Allow,
+                actions: [`${GroupScope}:${GetGroup}`],
+                resources: ['*'],
+              },
+            ],
+          },
+          unit._id.toString(),
+        ),
       ).rejects.toThrow(/No document found for query.*/);
     });
   });
 
   describe('findAll', () => {
     it('should return an array of groups', async () => {
-      await new groupModel(groups[0]).save();
-      await new groupModel(groups[1]).save();
+      await new groupModel(group).save();
+      await new groupModel(group2).save();
 
-      const responseGroups = await groupService.findAll({
-        policies: [
-          {
-            name: 'FooPolicy',
-            effect: Effect.Allow,
-            actions: [`${GroupScope}:${ListGroups}`],
-            resources: ['*'],
-          },
-        ],
-      });
-      expect(responseGroups.length).toBe(2);
-      expect(responseGroups[0].id).toBeDefined();
-      expect(responseGroups[0].name).toBe(groups[0].name);
-      expect(responseGroups[1].id).toBeDefined();
-      expect(responseGroups[1].name).toBe(groups[1].name);
-    });
-
-    it('should return an array of groups based on condition', async () => {
-      await new groupModel(groups[0]).save();
-      await new groupModel(groups[1]).save();
-
-      let responseGroups = await groupService.findAll({
-        policies: [
-          {
-            name: 'FooPolicy',
-            effect: Effect.Allow,
-            actions: [`${GroupScope}:${ListGroups}`],
-            resources: ['*'],
-            condition: { StringEquals: { name: groups[0].name } },
-          },
-        ],
-      });
-      expect(responseGroups.length).toBe(1);
-      expect(responseGroups[0].id).toBeDefined();
-      expect(responseGroups[0].name).toBe(groups[0].name);
-
-      responseGroups = await groupService.findAll({
-        policies: [
-          {
-            name: 'FooPolicy',
-            effect: Effect.Allow,
-            actions: [`${GroupScope}:${ListGroups}`],
-            resources: ['*'],
-            condition: { StringEquals: { name: 'Bar' } },
-          },
-        ],
-      });
-      expect(responseGroups.length).toBe(0);
-    });
-
-    it('should fail to return an array of groups if the groups are incorrect', async () => {
-      await new groupModel(groups[0]).save();
-      await new groupModel(groups[1]).save();
-
-      await expect(
-        groupService.findAll({
+      const responseGroups = await groupService.findAll(
+        {
           policies: [
             {
               name: 'FooPolicy',
-              effect: Effect.Deny,
+              effect: Effect.Allow,
               actions: [`${GroupScope}:${ListGroups}`],
               resources: ['*'],
             },
           ],
-        }),
-      ).rejects.toThrow(`Cannot execute "${ListGroups}" on "${GroupScope}"`);
+        },
+        unit._id.toString(),
+      );
+      expect(responseGroups.length).toBe(2);
+      expect(responseGroups[0].id).toBeDefined();
+      expect(responseGroups[0].name).toBe(group.name);
+      expect(responseGroups[1].id).toBeDefined();
+      expect(responseGroups[1].name).toBe(group2.name);
+    });
 
-      await expect(
-        groupService.findAll({
+    it('should return an array of groups based on condition', async () => {
+      await new groupModel(group).save();
+      await new groupModel(group2).save();
+
+      let responseGroups = await groupService.findAll(
+        {
           policies: [
             {
               name: 'FooPolicy',
               effect: Effect.Allow,
-              actions: [`Foo:${ListGroups}`],
+              actions: [`${GroupScope}:${ListGroups}`],
               resources: ['*'],
+              condition: { StringEquals: { name: group.name } },
             },
           ],
-        }),
-      ).rejects.toThrow(`Cannot execute "${ListGroups}" on "${GroupScope}"`);
+        },
+        unit._id.toString(),
+      );
+      expect(responseGroups.length).toBe(1);
+      expect(responseGroups[0].id).toBeDefined();
+      expect(responseGroups[0].name).toBe(group.name);
 
-      await expect(
-        groupService.findAll({
+      responseGroups = await groupService.findAll(
+        {
           policies: [
             {
               name: 'FooPolicy',
               effect: Effect.Allow,
-              actions: [`${GroupScope}:Action`],
+              actions: [`${GroupScope}:${ListGroups}`],
+              resources: ['*'],
+              condition: { StringEquals: { name: 'Bar' } },
+            },
+          ],
+        },
+        unit._id.toString(),
+      );
+      expect(responseGroups.length).toBe(0);
+    });
+
+    it('should fail to return an array of groups if the groups are incorrect', async () => {
+      await new groupModel(group).save();
+      await new groupModel(group2).save();
+
+      await expect(
+        groupService.findAll(
+          {
+            policies: [
+              {
+                name: 'FooPolicy',
+                effect: Effect.Deny,
+                actions: [`${GroupScope}:${ListGroups}`],
+                resources: ['*'],
+              },
+            ],
+          },
+          unit._id.toString(),
+        ),
+      ).rejects.toThrow(`Cannot execute "${ListGroups}" on "${GroupScope}"`);
+
+      await expect(
+        groupService.findAll(
+          {
+            policies: [
+              {
+                name: 'FooPolicy',
+                effect: Effect.Allow,
+                actions: [`Foo:${ListGroups}`],
+                resources: ['*'],
+              },
+            ],
+          },
+          unit._id.toString(),
+        ),
+      ).rejects.toThrow(`Cannot execute "${ListGroups}" on "${GroupScope}"`);
+
+      await expect(
+        groupService.findAll(
+          {
+            policies: [
+              {
+                name: 'FooPolicy',
+                effect: Effect.Allow,
+                actions: [`${GroupScope}:Action`],
+                resources: ['*'],
+              },
+            ],
+          },
+          unit._id.toString(),
+        ),
+      ).rejects.toThrow(`Cannot execute "${ListGroups}" on "${GroupScope}"`);
+    });
+
+    it('should return an array of groups based on unit', async () => {
+      const unitBar = await new unitModel({
+        _id: new Types.ObjectId('000000000001'),
+        name: 'BarUnit',
+        organization,
+      }).save();
+      await new groupModel(group).save();
+      await new groupModel({ ...group2, unit: unitBar }).save();
+
+      const responseGroups = await groupService.findAll(
+        {
+          policies: [
+            {
+              name: 'FooPolicy',
+              effect: Effect.Allow,
+              actions: [`${GroupScope}:${ListGroups}`],
               resources: ['*'],
             },
           ],
-        }),
-      ).rejects.toThrow(`Cannot execute "${ListGroups}" on "${GroupScope}"`);
+        },
+        unit._id.toString(),
+      );
+      expect(responseGroups.length).toBe(1);
+      expect(responseGroups[0].id).toBeDefined();
     });
   });
 
@@ -358,6 +468,7 @@ describe('GroupService', () => {
             },
           ],
         },
+        unit._id.toString(),
       );
       expect(updatedGroup.id).toBeDefined();
       expect(updatedGroup.name).toBe('BarGroup');
@@ -380,6 +491,7 @@ describe('GroupService', () => {
               },
             ],
           },
+          unit._id.toString(),
         ),
       ).rejects.toThrow(`Cannot execute "${UpdateGroup}" on "${GroupScope}"`);
 
@@ -397,6 +509,7 @@ describe('GroupService', () => {
               },
             ],
           },
+          unit._id.toString(),
         ),
       ).rejects.toThrow(`Cannot execute "${UpdateGroup}" on "${GroupScope}"`);
 
@@ -414,6 +527,7 @@ describe('GroupService', () => {
               },
             ],
           },
+          unit._id.toString(),
         ),
       ).rejects.toThrow(`Cannot execute "${UpdateGroup}" on "${GroupScope}"`);
     });
@@ -435,6 +549,7 @@ describe('GroupService', () => {
             },
           ],
         },
+        unit._id.toString(),
       );
       expect(updatedGroup.id).toBeDefined();
       expect(updatedGroup.name).toBe('BarGroup');
@@ -454,6 +569,37 @@ describe('GroupService', () => {
               },
             ],
           },
+          unit._id.toString(),
+        ),
+      ).rejects.toThrow(/No document found for query.*/);
+    });
+
+    it('should fail to update group if the entity is not the same', async () => {
+      const unitBar = await new unitModel({
+        _id: new Types.ObjectId('000000000001'),
+        name: 'BarUnit',
+        organization,
+      }).save();
+      const responseGroup = await new groupModel({
+        ...group,
+        unit: unitBar,
+      }).save();
+
+      await expect(
+        groupService.update(
+          responseGroup._id.toString(),
+          {},
+          {
+            policies: [
+              {
+                name: 'FooPolicy',
+                effect: Effect.Allow,
+                actions: [`${GroupScope}:${UpdateGroup}`],
+                resources: ['*'],
+              },
+            ],
+          },
+          unit._id.toString(),
         ),
       ).rejects.toThrow(/No document found for query.*/);
     });
@@ -463,91 +609,141 @@ describe('GroupService', () => {
     it('should remove a group', async () => {
       await new groupModel(group).save();
 
-      await groupService.remove(group._id.toString(), {
-        policies: [
-          {
-            name: 'FooPolicy',
-            effect: Effect.Allow,
-            actions: [`${GroupScope}:${RemoveGroup}`],
-            resources: ['*'],
-          },
-        ],
-      });
-      expect((await groupModel.count()).valueOf()).toBe(0);
-    });
-
-    it('should fail to remove a group if the groups are incorrect', async () => {
-      await new groupModel(group).save();
-
-      await expect(
-        groupService.remove(group._id.toString(), {
+      await groupService.remove(
+        group._id.toString(),
+        {
           policies: [
             {
               name: 'FooPolicy',
-              effect: Effect.Deny,
+              effect: Effect.Allow,
               actions: [`${GroupScope}:${RemoveGroup}`],
               resources: ['*'],
             },
           ],
-        }),
+        },
+        unit._id.toString(),
+      );
+      expect((await groupModel.count()).valueOf()).toBe(0);
+    });
+
+    it('should fail to remove a group if the policies are incorrect', async () => {
+      await new groupModel(group).save();
+
+      await expect(
+        groupService.remove(
+          group._id.toString(),
+          {
+            policies: [
+              {
+                name: 'FooPolicy',
+                effect: Effect.Deny,
+                actions: [`${GroupScope}:${RemoveGroup}`],
+                resources: ['*'],
+              },
+            ],
+          },
+          unit._id.toString(),
+        ),
       ).rejects.toThrow(`Cannot execute "${RemoveGroup}" on "${GroupScope}"`);
 
       await expect(
-        groupService.remove(group._id.toString(), {
-          policies: [
-            {
-              name: 'FooPolicy',
-              effect: Effect.Allow,
-              actions: [`Foo:${RemoveGroup}`],
-              resources: ['*'],
-            },
-          ],
-        }),
+        groupService.remove(
+          group._id.toString(),
+          {
+            policies: [
+              {
+                name: 'FooPolicy',
+                effect: Effect.Allow,
+                actions: [`Foo:${RemoveGroup}`],
+                resources: ['*'],
+              },
+            ],
+          },
+          unit._id.toString(),
+        ),
       ).rejects.toThrow(`Cannot execute "${RemoveGroup}" on "${GroupScope}"`);
 
       await expect(
-        groupService.remove(group._id.toString(), {
-          policies: [
-            {
-              name: 'FooPolicy',
-              effect: Effect.Allow,
-              actions: [`${GroupScope}:Action`],
-              resources: ['*'],
-            },
-          ],
-        }),
+        groupService.remove(
+          group._id.toString(),
+          {
+            policies: [
+              {
+                name: 'FooPolicy',
+                effect: Effect.Allow,
+                actions: [`${GroupScope}:Action`],
+                resources: ['*'],
+              },
+            ],
+          },
+          unit._id.toString(),
+        ),
       ).rejects.toThrow(`Cannot execute "${RemoveGroup}" on "${GroupScope}"`);
     });
 
     it('should remove a group based on condition', async () => {
       await new groupModel(group).save();
 
-      await groupService.remove(group._id.toString(), {
-        policies: [
-          {
-            name: 'FooPolicy',
-            effect: Effect.Allow,
-            actions: [`${GroupScope}:${RemoveGroup}`],
-            resources: ['*'],
-            condition: { StringEquals: { name: group.name } },
-          },
-        ],
-      });
-      expect((await groupModel.count()).valueOf()).toBe(0);
-
-      await new groupModel(group).save();
-      await expect(
-        groupService.remove(group._id.toString(), {
+      await groupService.remove(
+        group._id.toString(),
+        {
           policies: [
             {
               name: 'FooPolicy',
               effect: Effect.Allow,
               actions: [`${GroupScope}:${RemoveGroup}`],
               resources: ['*'],
-              condition: { StringEquals: { name: 'Bar' } },
+              condition: { StringEquals: { name: group.name } },
             },
           ],
-        }),
+        },
+        unit._id.toString(),
+      );
+      expect((await groupModel.count()).valueOf()).toBe(0);
+
+      await new groupModel(group).save();
+      await expect(
+        groupService.remove(
+          group._id.toString(),
+          {
+            policies: [
+              {
+                name: 'FooPolicy',
+                effect: Effect.Allow,
+                actions: [`${GroupScope}:${RemoveGroup}`],
+                resources: ['*'],
+                condition: { StringEquals: { name: 'Bar' } },
+              },
+            ],
+          },
+          unit._id.toString(),
+        ),
+      ).rejects.toThrow(/No document found for query.*/);
+    });
+
+    it('should fail to remove a group if the entity is not the same', async () => {
+      const unitBar = await new unitModel({
+        _id: new Types.ObjectId('000000000001'),
+        name: 'BarUnit',
+        organization,
+      }).save();
+      await new groupModel({ ...group, unit: unitBar }).save();
+
+      await expect(
+        groupService.remove(
+          group._id.toString(),
+          {
+            policies: [
+              {
+                name: 'FooPolicy',
+                effect: Effect.Allow,
+                actions: [`${GroupScope}:${RemoveGroup}`],
+                resources: ['*'],
+              },
+            ],
+          },
+          unit._id.toString(),
+        ),
       ).rejects.toThrow(/No document found for query.*/);
     });
   });

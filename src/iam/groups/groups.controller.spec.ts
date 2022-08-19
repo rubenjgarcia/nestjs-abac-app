@@ -3,6 +3,8 @@ import { Types } from 'mongoose';
 import * as mocks from 'node-mocks-http';
 import { GroupController } from './groups.controller';
 import { GroupService } from './groups.service';
+import { CreateGroupDto } from './dtos/create-group.dto';
+import { UpdateGroupDto } from './dtos/update-group.dto';
 import { Effect } from '../../framework/factories/casl-ability.factory';
 import {
   CreateGroup,
@@ -17,6 +19,9 @@ describe('GroupController', () => {
   let groupController: GroupController;
   let groupService: GroupService;
 
+  const createGroupDto: CreateGroupDto = { name: 'FooGroup' };
+  const updateGroupDto: UpdateGroupDto = { name: 'BarGroup' };
+
   beforeAll(async () => {
     const module = await Test.createTestingModule({
       controllers: [GroupController],
@@ -26,25 +31,20 @@ describe('GroupController', () => {
           useValue: {
             findOne: jest.fn().mockResolvedValue({
               _id: new Types.ObjectId('000000000000'),
-              name: 'FooGroup',
             }),
             findAll: jest.fn().mockResolvedValue([
               {
                 _id: new Types.ObjectId('000000000000'),
-                name: 'FooGroup',
               },
               {
                 _id: new Types.ObjectId('000000000001'),
-                name: 'BarGroup',
               },
             ]),
             create: jest.fn().mockResolvedValue({
               _id: new Types.ObjectId('000000000000'),
-              name: 'FooGroup',
             }),
             update: jest.fn().mockResolvedValue({
               _id: new Types.ObjectId('000000000000'),
-              name: 'FooGroup',
             }),
             remove: jest.fn(),
           },
@@ -68,16 +68,13 @@ describe('GroupController', () => {
             resources: ['*'],
           },
         ],
+        unitId: '000000000000',
       };
-      await expect(
-        groupController.create({ name: 'FooGroup' }, request),
-      ).resolves.toEqual({
-        _id: new Types.ObjectId('000000000000'),
-        name: 'FooGroup',
-      });
+      await groupController.create(createGroupDto, request);
       expect(groupService.create).toHaveBeenCalledWith(
-        { name: 'FooGroup' },
+        createGroupDto,
         request.user,
+        '000000000000',
       );
     });
   });
@@ -94,13 +91,14 @@ describe('GroupController', () => {
             resources: ['*'],
           },
         ],
+        unitId: '000000000000',
       };
-      await expect(groupController.findOne('foo', request)).resolves.toEqual({
-        _id: new Types.ObjectId('000000000000'),
-        name: 'FooGroup',
-      });
-
-      expect(groupService.findOne).toHaveBeenCalledWith('foo', request.user);
+      await groupController.findOne('foo', request);
+      expect(groupService.findOne).toHaveBeenCalledWith(
+        'foo',
+        request.user,
+        '000000000000',
+      );
     });
   });
 
@@ -116,19 +114,13 @@ describe('GroupController', () => {
             resources: ['*'],
           },
         ],
+        unitId: '000000000000',
       };
-      await expect(groupController.findAll(request)).resolves.toEqual([
-        {
-          _id: new Types.ObjectId('000000000000'),
-          name: 'FooGroup',
-        },
-        {
-          _id: new Types.ObjectId('000000000001'),
-          name: 'BarGroup',
-        },
-      ]);
-
-      expect(groupService.findAll).toHaveBeenCalledWith(request.user);
+      await groupController.findAll(request);
+      expect(groupService.findAll).toHaveBeenCalledWith(
+        request.user,
+        '000000000000',
+      );
     });
   });
 
@@ -144,19 +136,14 @@ describe('GroupController', () => {
             resources: ['*'],
           },
         ],
+        unitId: '000000000000',
       };
-      const updateGroupDto = { name: 'FooGroup' };
-      await expect(
-        groupController.update('000000000000', updateGroupDto, request),
-      ).resolves.toEqual({
-        _id: new Types.ObjectId('000000000000'),
-        name: 'FooGroup',
-      });
-
+      await groupController.update('000000000000', updateGroupDto, request);
       expect(groupService.update).toHaveBeenCalledWith(
         '000000000000',
         updateGroupDto,
         request.user,
+        '000000000000',
       );
     });
   });
@@ -173,11 +160,13 @@ describe('GroupController', () => {
             resources: ['*'],
           },
         ],
+        unitId: '000000000000',
       };
       groupController.remove('000000000000', request);
       expect(groupService.remove).toHaveBeenCalledWith(
         '000000000000',
         request.user,
+        '000000000000',
       );
     });
   });

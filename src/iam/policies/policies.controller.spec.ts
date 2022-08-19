@@ -91,6 +91,7 @@ describe('PolicyController', () => {
             resources: ['*'],
           },
         ],
+        unitId: '000000000000',
       };
       await expect(
         policyController.create(policyCreateDto, request),
@@ -104,6 +105,7 @@ describe('PolicyController', () => {
       expect(policyService.create).toHaveBeenCalledWith(
         policyCreateDto,
         request.user,
+        '000000000000',
       );
     });
   });
@@ -120,6 +122,7 @@ describe('PolicyController', () => {
             resources: ['*'],
           },
         ],
+        unitId: '000000000000',
       };
       await expect(policyController.findOne('foo', request)).resolves.toEqual({
         _id: new Types.ObjectId('000000000000'),
@@ -129,7 +132,11 @@ describe('PolicyController', () => {
         resources: ['*'],
       });
 
-      expect(policyService.findOne).toHaveBeenCalledWith('foo', request.user);
+      expect(policyService.findOne).toHaveBeenCalledWith(
+        'foo',
+        request.user,
+        '000000000000',
+      );
     });
   });
 
@@ -145,6 +152,7 @@ describe('PolicyController', () => {
             resources: ['*'],
           },
         ],
+        unitId: '000000000000',
       };
       await expect(policyController.findAll(request)).resolves.toEqual([
         {
@@ -163,7 +171,10 @@ describe('PolicyController', () => {
         },
       ]);
 
-      expect(policyService.findAll).toHaveBeenCalledWith(request.user);
+      expect(policyService.findAll).toHaveBeenCalledWith(
+        request.user,
+        '000000000000',
+      );
     });
   });
 
@@ -179,6 +190,7 @@ describe('PolicyController', () => {
             resources: ['*'],
           },
         ],
+        unitId: '000000000000',
       };
       const updatePolicyDto = {
         name: 'Bar',
@@ -200,6 +212,7 @@ describe('PolicyController', () => {
         '000000000000',
         updatePolicyDto,
         request.user,
+        '000000000000',
       );
     });
   });
@@ -216,11 +229,13 @@ describe('PolicyController', () => {
             resources: ['*'],
           },
         ],
+        unitId: '000000000000',
       };
       policyController.remove('000000000000', request);
       expect(policyService.remove).toHaveBeenCalledWith(
         '000000000000',
         request.user,
+        '000000000000',
       );
     });
   });

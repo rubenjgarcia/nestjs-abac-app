@@ -21,8 +21,11 @@ import {
 } from './users.actions';
 import { User, UserSchema } from './users.schema';
 import { Policy, PolicySchema } from '../policies/policies.schema';
-import { GroupsModule } from '../groups/groups.module';
-import { Group, GroupSchema } from '../groups/groups.schema';
+import { Unit, UnitSchema } from '../units/units.schema';
+import {
+  Organization,
+  OrganizationSchema,
+} from '../organizations/organizations.schema';
 
 describe('Users e2e', () => {
   let app: INestApplication;
@@ -61,7 +64,18 @@ describe('Users e2e', () => {
               Policy.name,
               PolicySchema,
             );
-            e2eUtils = new E2EUtils(userModel, policyModel, jwtService);
+            const unitModel = mongoConnection.model(Unit.name, UnitSchema);
+            const organizationModel = mongoConnection.model(
+              Organization.name,
+              OrganizationSchema,
+            );
+            e2eUtils = new E2EUtils(
+              userModel,
+              policyModel,
+              unitModel,
+              organizationModel,
+              jwtService,
+            );
             return { uri };
           },
         }),
