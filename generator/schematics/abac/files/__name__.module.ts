@@ -12,16 +12,16 @@ import { PoliciesGuard } from '../framework/guards/policies.guard';
 
 @Module({
   imports: [
+    FrameworkModule,
     MongooseModule.forFeature([
       { name: <%= singular(classify(name)) %>.name, schema: <%= singular(classify(name)) %>Schema },
     ]),
-    FrameworkModule,
   ],
   controllers: [<%= singular(classify(name)) %>Controller,],
   providers: [
+    CaslAbilityFactory,
     <%= singular(classify(name)) %>Service,
     { provide: APP_GUARD, useClass: PoliciesGuard },
-    CaslAbilityFactory,
   ],
 })
 export class <%= classify(name) %>Module {}

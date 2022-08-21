@@ -26,6 +26,7 @@ import {
   Organization,
   OrganizationSchema,
 } from '../organizations/organizations.schema';
+import { Role, RoleSchema } from '../roles/roles.schema';
 
 describe('UserService', () => {
   let userService: UserService;
@@ -36,6 +37,7 @@ describe('UserService', () => {
   let groupModel: Model<Group>;
   let unitModel: Model<Unit>;
   let organizationModel: Model<Organization>;
+  let roleModel: Model<Role>;
 
   let organization: Organization;
   let unit: Unit;
@@ -56,6 +58,7 @@ describe('UserService', () => {
       Organization.name,
       OrganizationSchema,
     );
+    roleModel = mongoConnection.model(Role.name, RoleSchema);
     const module = await Test.createTestingModule({
       providers: [
         UserService,
@@ -467,11 +470,13 @@ describe('UserService', () => {
 
   describe('findOneByEmailAndPassword', () => {
     it('should return an user by email and password', async () => {
+      const role = await new roleModel({ name: 'FooRole', unit });
       const hash = await bcrypt.hash('Foo', 10);
       await new userModel({
         email: 'foo@example.com',
         password: hash,
         unit,
+        roles: [role],
       }).save();
       const responseUser = await userService.findOneByEmailAndPassword(
         user.email,
@@ -486,6 +491,11 @@ describe('UserService', () => {
       expect(responseUser.unit.organization._id).toStrictEqual(
         organization._id,
       );
+      expect(responseUser.unit.organization._id).toStrictEqual(
+        organization._id,
+      );
+      expect(responseUser.roles.length).toBe(1);
+      expect(responseUser.roles[0]._id).toStrictEqual(role._id);
     });
 
     it('should fail to return an user with wrong password', async () => {
@@ -560,6 +570,45 @@ describe('UserService', () => {
 
       expect(responseGroup.policies.length).toBe(1);
       const responseGroupPolicy = responseGroup.policies[0];
+      expect(responseGroupPolicy.actions).toEqual(savedPolicy.actions);
+      expect(responseGroupPolicy.effect).toBe(savedPolicy.effect);
+      expect(responseGroupPolicy.name).toBe(savedPolicy.name);
+      expect(responseGroupPolicy.resources).toEqual(savedPolicy.resources);
+    });
+
+    it('should return an user without password, with policies and roles with policies', async () => {
+      const savedPolicy = await new policyModel(policy).save();
+      const savedRole = await new roleModel({
+        name: 'FooRole',
+        policies: [savedPolicy],
+        unit,
+      }).save();
+      await new userModel({
+        ...user,
+        policies: [savedPolicy],
+        roles: [savedRole],
+        unit,
+      }).save();
+
+      const responseUser = await userService.findOneWithPolicies(user.email);
+      expect(responseUser.email).toBe(user.email);
+      expect(responseUser.password).toBeUndefined();
+
+      expect(responseUser.policies.length).toBe(1);
+      const responsePolicy = responseUser.policies[0];
+      expect(responsePolicy.actions).toEqual(savedPolicy.actions);
+      expect(responsePolicy.effect).toBe(savedPolicy.effect);
+      expect(responsePolicy.name).toBe(savedPolicy.name);
+      expect(responsePolicy.resources).toEqual(savedPolicy.resources);
+
+      expect(responseUser.roles.length).toBe(1);
+      const responseRole = responseUser.roles[0];
+      expect(responseRole.name).toEqual(savedRole.name);
+      expect(responseRole.unit._id).toBeDefined();
+      expect(responseRole.unit.organization._id).toBeDefined();
+
+      expect(responseRole.policies.length).toBe(1);
+      const responseGroupPolicy = responseRole.policies[0];
       expect(responseGroupPolicy.actions).toEqual(savedPolicy.actions);
       expect(responseGroupPolicy.effect).toBe(savedPolicy.effect);
       expect(responseGroupPolicy.name).toBe(savedPolicy.name);

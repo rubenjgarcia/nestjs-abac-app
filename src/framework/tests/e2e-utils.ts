@@ -7,6 +7,7 @@ import { User } from '../../iam/users/users.schema';
 import { Policy } from '../../iam/policies/policies.schema';
 import { Unit } from '../../iam/units/units.schema';
 import { Organization } from '../../iam/organizations/organizations.schema';
+import { Role } from 'src/iam/roles/roles.schema';
 
 export class E2EUtils {
   constructor(
@@ -22,12 +23,16 @@ export class E2EUtils {
     return await new this.policyModel({ ...policy, unit }).save();
   }
 
+  async createPasswordHash(password: string): Promise<string> {
+    return await bcrypt.hash(password, 10);
+  }
+
   async createUser(
     user: CreateUserDto,
     policies?: CreatePolicyDto | CreatePolicyDto[],
   ): Promise<User> {
     const unit = await this.getUnit();
-    const hash = await bcrypt.hash(user.password, 10);
+    const hash = await this.createPasswordHash(user.password);
     if (policies !== undefined) {
       const savedPolicies = await Promise.all(
         [].concat(policies).map(async (p) => {
@@ -46,14 +51,23 @@ export class E2EUtils {
     }
   }
 
+  async login(user: User): Promise<string> {
+    const payload = {
+      email: user.email,
+      sub: user._id,
+      unit: user.unit._id.toString(),
+      organization: user.unit.organization._id.toString(),
+      roles: user.roles ? user.roles.map((r: Role) => r._id.toString()) : null,
+    };
+    return await this.jwtService.sign(payload);
+  }
+
   async createUserAndLogin(
     user: CreateUserDto,
     policies?: CreatePolicyDto | CreatePolicyDto[],
   ) {
-    await this.createUser(user, policies);
-    return await this.jwtService.sign({
-      email: user.email,
-    });
+    const responseUser = await this.createUser(user, policies);
+    return await this.login(responseUser);
   }
 
   async getUnit(): Promise<Unit> {

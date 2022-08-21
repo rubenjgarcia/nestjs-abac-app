@@ -49,6 +49,8 @@ export class UserService extends CrudService<UserDocument> {
     return await super.findAll(withPolicies, unitId, {
       password: false,
       policies: false,
+      groups: false,
+      roles: false,
     });
   }
 
@@ -60,6 +62,8 @@ export class UserService extends CrudService<UserDocument> {
     return await super.findOne(id, withPolicies, unitId, {
       password: false,
       policies: false,
+      groups: false,
+      roles: false,
     });
   }
 
@@ -72,6 +76,8 @@ export class UserService extends CrudService<UserDocument> {
     return await super.update(id, updateUserDto, withPolicies, unitId, {
       password: false,
       policies: false,
+      groups: false,
+      roles: false,
     });
   }
 
@@ -98,6 +104,7 @@ export class UserService extends CrudService<UserDocument> {
       .populate([
         { path: 'policies' },
         { path: 'groups', populate: { path: 'policies' } },
+        { path: 'roles', populate: ['policies', 'unit'] },
         { path: 'unit' },
       ]);
   }

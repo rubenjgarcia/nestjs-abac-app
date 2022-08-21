@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { <%= singular(classify(name)) %>, <%= singular(classify(name)) %>Document } from './<%= name %>.schema';
-import { <%= singular(classify(name)) %>CrudActions } from './<%= name %>.actions';
 import { AccessibleRecordModel } from '@casl/mongoose';
 import { InjectModel } from '@nestjs/mongoose';
+import { <%= singular(classify(name)) %>, <%= singular(classify(name)) %>Document } from './<%= name %>.schema';
+import { <%= singular(classify(name)) %>CrudActions } from './<%= name %>.actions';
 import { CrudService } from '../framework/crud.service';
 
 @Injectable()

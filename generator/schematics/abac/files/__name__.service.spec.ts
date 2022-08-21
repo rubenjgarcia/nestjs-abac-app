@@ -17,8 +17,8 @@ import {
   Remove<%= singular(classify(name)) %>,
   Update<%= singular(classify(name)) %>,
 } from './<%= name %>.actions';
-import { Unit, UnitSchema } from './iam/units/units.schema';
-import { Organization, OrganizationSchema } from './iam/organizations/organizations.schema';
+import { Unit, UnitSchema } from '../iam/units/units.schema';
+import { Organization, OrganizationSchema } from '../iam/organizations/organizations.schema';
 
 describe('<%= singular(classify(name)) %>Service', () => {
   let <%= singular(name) %>Service: <%= singular(classify(name)) %>Service;
@@ -88,7 +88,7 @@ describe('<%= singular(classify(name)) %>Service', () => {
   describe('create', () => {
     it('should create a <%= singular(name) %>', async () => {
       const response<%= singular(classify(name)) %> = await <%= singular(name) %>Service.create(
-        { },
+        <%= singular(name) %>,
         {
           policies: [
             {
@@ -107,7 +107,7 @@ describe('<%= singular(classify(name)) %>Service', () => {
 
     it('should create a <%= singular(name) %> with condition', async () => {
       const response<%= singular(classify(name)) %> = await <%= singular(name) %>Service.create(
-        { },
+        <%= singular(name) %>,
         {
           policies: [
             {
@@ -127,7 +127,7 @@ describe('<%= singular(classify(name)) %>Service', () => {
     it('should fail to create a <%= singular(name) %> if the policies are incorrect', async () => {
       await expect(
         <%= singular(name) %>Service.create(
-          { },
+          <%= singular(name) %>,
           {
             policies: [
               {
@@ -144,7 +144,7 @@ describe('<%= singular(classify(name)) %>Service', () => {
 
       await expect(
         <%= singular(name) %>Service.create(
-          { },
+          <%= singular(name) %>,
           {
             policies: [
               {
@@ -161,7 +161,7 @@ describe('<%= singular(classify(name)) %>Service', () => {
 
       await expect(
         <%= singular(name) %>Service.create(
-          { },
+          <%= singular(name) %>,
           {
             policies: [
               {

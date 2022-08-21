@@ -73,6 +73,10 @@ This `user` only can call `GET /user/:id` if the `email` of the `user` with that
 
 The `user` can belongs to zero or more groups. If the `user` belongs to a group it will inherit the `policies` from that group and will be added to the `policies` of the `user`
 
+### Roles
+
+A `role` is a way to give `users`  permissions without the need of changing the `policies` assign to that `user`. A `user` can assume a `role` and the `user` assumes that `role` the `user` can perform the `actions` that the `role` has in its `policies`
+
 ### Organizations and units
 
 When you create a `organization` a new `unit` is created with it. One `organization` can have more than one `unit` but need to have at least one `unit`. Every `unit` can have other `units` creating the **organization tree**
@@ -178,4 +182,3 @@ This will generate an user with email `foo@example.com` with password `bar`. Fir
 ## TODOs and improvements
 - [ ] Cache JWT lookups
 - [ ] Prompt and generate only files selected, i.e. controller, service, e2e-test, ...
-- [ ] Implement tree based conditions: _This tree can be used to give the `user` permissions based on the `conditions` `OrganizationEquals`, `UnitEquals`, `UnitPath`_

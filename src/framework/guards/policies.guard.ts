@@ -23,10 +23,11 @@ export class PoliciesGuard implements CanActivate {
       return true;
     }
 
-    const policyHandlers = this.reflector.get<IPolicyHandler[]>(
-      CHECK_POLICIES_KEY,
-      context.getHandler(),
-    );
+    const policyHandlers =
+      this.reflector.get<IPolicyHandler[]>(
+        CHECK_POLICIES_KEY,
+        context.getHandler(),
+      ) || [];
 
     const request = context.switchToHttp().getRequest();
     const ability = this.caslAbilityFactory.createWithPolicies(request.user);

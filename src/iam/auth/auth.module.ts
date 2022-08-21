@@ -21,10 +21,13 @@ import { UsersModule } from '../users/users.module';
 import { GroupsModule } from '../groups/groups.module';
 import { UnitsModule } from '../units/units.module';
 import { OrganizationsModule } from '../organizations/organizations.module';
+import { RolesModule } from '../roles/roles.module';
+import { PoliciesModule } from '../policies/policies.module';
 
 @Module({
   imports: [
-    PassportModule,
+    FrameworkModule,
+    GroupsModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -33,22 +36,23 @@ import { OrganizationsModule } from '../organizations/organizations.module';
         signOptions: { expiresIn: '7d' },
       }),
     }),
-    UsersModule,
-    GroupsModule,
-    UnitsModule,
     OrganizationsModule,
-    FrameworkModule,
+    PassportModule,
+    PoliciesModule,
+    RolesModule,
+    UnitsModule,
+    UsersModule,
   ],
   controllers: [AuthController],
   providers: [
-    UserService,
     AuthService,
-    LocalStrategy,
-    JwtStrategy,
-    { provide: APP_GUARD, useClass: JwtAuthGuard },
-    { provide: APP_GUARD, useClass: PoliciesGuard },
     CaslAbilityFactory,
     ConfigService,
+    JwtStrategy,
+    LocalStrategy,
+    UserService,
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: PoliciesGuard },
   ],
   exports: [AuthService],
 })

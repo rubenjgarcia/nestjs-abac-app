@@ -19,18 +19,34 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: any) {
     const user = await this.userService.findOneWithPolicies(payload.email);
-    const userPolicies = user.policies || [];
-    const groupPolicies =
-      user.groups?.reduce(
-        (prev, cur) => [...prev, ...(cur.policies || [])],
-        [],
-      ) || [];
+    let unitId;
+    let organizationId;
+    let policies;
+    if (payload.roleId) {
+      const role = user.roles.find((r) => r._id.toString() === payload.roleId);
+      policies = role.policies;
+      unitId = role.unit._id.toString();
+      organizationId = role.unit.organization._id.toString();
+    } else {
+      const userPolicies = user.policies || [];
+      const groupPolicies =
+        user.groups?.reduce(
+          (prev, cur) => [...prev, ...(cur.policies || [])],
+          [],
+        ) || [];
+      policies = [...userPolicies, ...groupPolicies];
+      unitId = user.unit._id.toString();
+      organizationId = user.unit.organization._id.toString();
+    }
+
     return {
       userId: payload.sub,
       email: payload.email,
-      unitId: user.unit._id.toString(),
-      organizationId: user.unit.organization._id.toString(),
-      policies: [...userPolicies, ...groupPolicies],
+      unitId,
+      organizationId,
+      roleId: payload.roleId || null,
+      roles: payload.roles,
+      policies,
     };
   }
 }

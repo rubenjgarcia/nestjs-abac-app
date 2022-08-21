@@ -22,6 +22,16 @@ describe('JWT Strategy', () => {
     organization,
   };
 
+  const roleOrganization: Organization = {
+    _id: new Types.ObjectId('000000000001'),
+    name: 'BarOrganization',
+  };
+  const roleUnit: Unit = {
+    _id: new Types.ObjectId('000000000001'),
+    name: 'BarUnit',
+    organization: roleOrganization,
+  };
+
   beforeAll(async () => {
     const policies = [
       {
@@ -38,6 +48,15 @@ describe('JWT Strategy', () => {
         name: 'BarPolicy',
         effect: Effect.Allow,
         actions: ['Bar:Action'],
+        resources: ['*'],
+      },
+    ];
+    const rolePolicies = [
+      {
+        _id: new Types.ObjectId('000000000002'),
+        name: 'WeePolicy',
+        effect: Effect.Allow,
+        actions: ['Wee:Action'],
         resources: ['*'],
       },
     ];
@@ -71,7 +90,7 @@ describe('JWT Strategy', () => {
       .calledWith('withGroupsWithoutPolicies@example.com')
       .mockResolvedValue({
         _id: new Types.ObjectId('000000000000'),
-        email: 'withGroups@example.com',
+        email: 'withGroupsWithoutPolicies@example.com',
         unit,
         groups: [
           {
@@ -91,6 +110,20 @@ describe('JWT Strategy', () => {
         _id: new Types.ObjectId('000000000000'),
         email: 'withoutGroupOrPolicies@example.com',
         unit,
+      })
+      .calledWith('withRolesWithPolicies@example.com')
+      .mockResolvedValue({
+        _id: new Types.ObjectId('000000000000'),
+        email: 'withRolesWithPolicies@example.com',
+        unit,
+        roles: [
+          {
+            _id: new Types.ObjectId('000000000000'),
+            name: 'FooRole',
+            policies: rolePolicies,
+            unit: roleUnit,
+          },
+        ],
       });
 
     const module = await Test.createTestingModule({
@@ -202,6 +235,49 @@ describe('JWT Strategy', () => {
       expect(payload.unitId).toBe(unit._id.toString());
       expect(payload.organizationId).toBe(organization._id.toString());
       expect(payload.policies.length).toBe(0);
+    });
+
+    it('should create payload for user if the user has roles', async () => {
+      const payload = await jwtStrategy.validate({
+        email: 'withRolesWithPolicies@example.com',
+        sub,
+        unitId: unit._id.toString(),
+        organizationId: organization._id.toString(),
+        roles: ['000000000000'],
+      });
+
+      expect(payload.userId).toBe(sub);
+      expect(payload.email).toBe('withRolesWithPolicies@example.com');
+      expect(payload.unitId).toBe(unit._id.toString());
+      expect(payload.organizationId).toBe(organization._id.toString());
+      expect(payload.roles.length).toBe(1);
+      expect(payload.roles[0]).toBe('000000000000');
+      expect(payload.policies.length).toBe(0);
+    });
+
+    it('should create payload for user if the user is assuming a role', async () => {
+      const payload = await jwtStrategy.validate({
+        email: 'withRolesWithPolicies@example.com',
+        sub,
+        unitId: unit._id.toString(),
+        organizationId: organization._id.toString(),
+        roles: [new Types.ObjectId('000000000000').toString()],
+        roleId: new Types.ObjectId('000000000000').toString(),
+      });
+
+      expect(payload.userId).toBe(sub);
+      expect(payload.email).toBe('withRolesWithPolicies@example.com');
+      expect(payload.unitId).toBe(roleUnit._id.toString());
+      expect(payload.organizationId).toBe(roleOrganization._id.toString());
+      expect(payload.roles.length).toBe(1);
+      expect(payload.roles[0]).toBe(
+        new Types.ObjectId('000000000000').toString(),
+      );
+      expect(payload.policies.length).toBe(1);
+      expect(payload.policies[0].name).toBe('WeePolicy');
+      expect(payload.policies[0].effect).toBe(Effect.Allow);
+      expect(payload.policies[0].actions[0]).toBe('Wee:Action');
+      expect(payload.policies[0].resources[0]).toBe('*');
     });
   });
 });

@@ -6,6 +6,7 @@ import { Entity } from '../../framework/entity';
 import { Policy } from '../policies/policies.schema';
 import { Group } from '../groups/groups.schema';
 import { Unit } from '../units/units.schema';
+import { Role } from '../roles/roles.schema';
 
 export type UserDocument = User & Document;
 
@@ -36,6 +37,13 @@ export class User implements WithPolicies, Entity {
     _id: false,
   })
   groups?: Group[];
+
+  @Prop({
+    type: [Types.ObjectId],
+    ref: Role.name,
+    _id: false,
+  })
+  roles?: Role[];
 
   @Prop({
     type: Types.ObjectId,

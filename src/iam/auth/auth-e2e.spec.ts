@@ -1,6 +1,6 @@
 import * as request from 'supertest';
 import { MongoMemoryServer } from 'mongodb-memory-server';
-import mongoose, { Connection, connect } from 'mongoose';
+import mongoose, { Connection, connect, Model } from 'mongoose';
 import { accessibleRecordsPlugin } from '@casl/mongoose';
 import { Test } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
@@ -16,12 +16,15 @@ import {
   Organization,
   OrganizationSchema,
 } from '../organizations/organizations.schema';
+import { Role, RoleSchema } from '../roles/roles.schema';
 
 describe('Auth e2e', () => {
   let app: INestApplication;
   let e2eUtils: E2EUtils;
   let mongod: MongoMemoryServer;
   let mongoConnection: Connection;
+  let userModel: Model<User>;
+  let roleModel: Model<Role>;
 
   beforeAll(async () => {
     mongoose.plugin(accessibleRecordsPlugin);
@@ -45,7 +48,7 @@ describe('Auth e2e', () => {
             mongod = await MongoMemoryServer.create();
             const uri = await mongod.getUri();
             mongoConnection = (await connect(uri)).connection;
-            const userModel = mongoConnection.model(User.name, UserSchema);
+            userModel = mongoConnection.model(User.name, UserSchema);
             const policyModel = mongoConnection.model(
               Policy.name,
               PolicySchema,
@@ -55,6 +58,7 @@ describe('Auth e2e', () => {
               Organization.name,
               OrganizationSchema,
             );
+            roleModel = mongoConnection.model(Role.name, RoleSchema);
             e2eUtils = new E2EUtils(
               userModel,
               policyModel,
@@ -118,6 +122,45 @@ describe('Auth e2e', () => {
           .expect(200);
 
         expect(response.body.access_token).toBeDefined();
+      });
+    });
+
+    describe('POST /auth/assume/:roleId', () => {
+      it('should allow to assume a role if the user has that role', async () => {
+        const unit = await e2eUtils.getUnit();
+        const role = await new roleModel({ name: 'FooRole', unit }).save();
+        const user = {
+          email: 'foo@example.com',
+          password: await e2eUtils.createPasswordHash('bar'),
+          roles: [role],
+          unit,
+        };
+        const responseUser = await new userModel(user).save();
+        const accessToken = await e2eUtils.login(responseUser);
+        const response = await request(app.getHttpServer())
+          .post(`/auth/assume/${role._id.toString()}`)
+          .send()
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(200);
+
+        expect(response.body.access_token).toBeDefined();
+      });
+
+      it('should not allow to assume a role if the user not have that role', async () => {
+        const unit = await e2eUtils.getUnit();
+        const role = await new roleModel({ name: 'FooRole', unit }).save();
+        const user = {
+          email: 'foo@example.com',
+          password: await e2eUtils.createPasswordHash('bar'),
+          unit,
+        };
+        const responseUser = await new userModel(user).save();
+        const accessToken = await e2eUtils.login(responseUser);
+        await request(app.getHttpServer())
+          .post(`/auth/assume/${role._id.toString()}`)
+          .send()
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(403);
       });
     });
   });

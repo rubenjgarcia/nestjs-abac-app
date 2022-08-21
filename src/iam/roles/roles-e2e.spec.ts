@@ -7,52 +7,54 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule, JwtService } from '@nestjs/jwt';
-import { <%= classify(name) %>Module } from './<%= name %>.module';
-import { AuthModule } from '../iam/auth/auth.module';
-import { E2EUtils } from '../framework/tests/e2e-utils';
-import { Effect } from '../framework/factories/casl-ability.factory';
+import { RolesModule } from './roles.module';
+import { AuthModule } from '../auth/auth.module';
+import { E2EUtils } from '../../framework/tests/e2e-utils';
+import { Effect } from '../../framework/factories/casl-ability.factory';
 import {
-  Create<%= singular(classify(name)) %>,
-  Get<%= singular(classify(name)) %>,
-  List<%= classify(name) %>,
-  <%= singular(classify(name)) %>Scope,
-  Remove<%= singular(classify(name)) %>,
-  Update<%= singular(classify(name)) %>,
-} from './<%= name %>.actions';
-import { <%= singular(classify(name)) %>, <%= singular(classify(name)) %>Schema } from './<%= name %>.schema';
-import { Create<%= singular(classify(name)) %>Dto } from './dtos/create-<%= singular(name) %>.dto';
-import { Update<%= singular(classify(name)) %>Dto } from './dtos/update-<%= singular(name) %>.dto';
-import { Policy, PolicySchema } from '../iam/policies/policies.schema';
-import { User, UserSchema } from '../iam/users/users.schema';
-import { Unit, UnitSchema } from '../iam/units/units.schema';
+  CreateRole,
+  GetRole,
+  ListRoles,
+  RoleScope,
+  RemoveRole,
+  UpdateRole,
+  AddRoleToUser,
+  RemoveRoleFromUser,
+} from './roles.actions';
+import { Role, RoleSchema } from './roles.schema';
+import { CreateRoleDto } from './dtos/create-role.dto';
+import { UpdateRoleDto } from './dtos/update-role.dto';
+import { Policy, PolicySchema } from '../policies/policies.schema';
+import { User, UserSchema } from '../users/users.schema';
+import { Unit, UnitSchema } from '../units/units.schema';
 import {
   Organization,
   OrganizationSchema,
-} from '../iam/organizations/organizations.schema';
+} from '../organizations/organizations.schema';
 
-describe('<%= classify(name) %> e2e', () => {
+describe('Roles e2e', () => {
   let app: INestApplication;
   let e2eUtils: E2EUtils;
-  let <%= singular(name) %>Model: Model<<%= singular(classify(name)) %>>;
+  let roleModel: Model<Role>;
   let mongod: MongoMemoryServer;
   let mongoConnection: Connection;
 
-  const create<%= singular(classify(name)) %> = async (<%= singular(name) %>: Create<%= singular(classify(name)) %>Dto): Promise<<%= singular(classify(name)) %>> => {
-    return await new <%= singular(name) %>Model(
-      { ...<%= singular(name) %>,
-      unit: await e2eUtils.getUnit()
+  const createRole = async (role: CreateRoleDto): Promise<Role> => {
+    return await new roleModel({
+      ...role,
+      unit: await e2eUtils.getUnit(),
     }).save();
-  }
+  };
 
-  const create<%= singular(classify(name)) %>Dto: Create<%= singular(classify(name)) %>Dto = {};
-  const update<%= singular(classify(name)) %>Dto: Update<%= singular(classify(name)) %>Dto = {};
+  const createRoleDto: CreateRoleDto = { name: 'FooRole' };
+  const updateRoleDto: UpdateRoleDto = { name: 'BarRole' };
 
   beforeAll(async () => {
     mongoose.plugin(accessibleRecordsPlugin);
     const module = await Test.createTestingModule({
       imports: [
         AuthModule,
-        <%= classify(name) %>Module,
+        RolesModule,
         ConfigModule.forRoot({ isGlobal: true }),
         MongooseModule.forRootAsync({
           imports: [
@@ -91,7 +93,7 @@ describe('<%= classify(name) %> e2e', () => {
               organizationModel,
               jwtService,
             );
-            <%= singular(name) %>Model = mongoConnection.model(<%= singular(classify(name)) %>.name, <%= singular(classify(name)) %>Schema);
+            roleModel = mongoConnection.model(Role.name, RoleSchema);
             return { uri };
           },
         }),
@@ -107,29 +109,29 @@ describe('<%= classify(name) %> e2e', () => {
     await Promise.all([mongoConnection.close(), mongod.stop(), app.close()]);
   });
 
-  describe('<%= classify(name) %> API', () => {
+  describe('Roles API', () => {
     afterEach(async () => {
       await mongoConnection.dropDatabase();
     });
 
-    describe('GET /<%= name %>', () => {
-      it("should fail to get <%= (name) %> if user it's not logged in", async () => {
-        await request(app.getHttpServer()).get('/<%= name %>').expect(401);
+    describe('GET /iam/roles', () => {
+      it("should fail to get roles if user it's not logged in", async () => {
+        await request(app.getHttpServer()).get('/iam/roles').expect(401);
       });
 
-      it('should fail to get <%= (name) %> if user has no policies', async () => {
+      it('should fail to get roles if user has no policies', async () => {
         const accessToken = await e2eUtils.createUserAndLogin({
           email: 'foo@example.com',
           password: 'bar',
         });
         await request(app.getHttpServer())
-          .get('/<%= name %>')
+          .get('/iam/roles')
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
-      it('should get <%= (name) %> if user has wildcard resource in policy', async () => {
-        await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
+      it('should get roles if user has wildcard resource in policy', async () => {
+        await createRole(createRoleDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -138,18 +140,18 @@ describe('<%= classify(name) %> e2e', () => {
           {
             name: 'FooPolicy',
             effect: Effect.Allow,
-            actions: [`${<%= singular(classify(name)) %>Scope}:${List<%= classify(name) %>}`],
+            actions: [`${RoleScope}:${ListRoles}`],
             resources: ['*'],
           },
         );
         const response = await request(app.getHttpServer())
-          .get('/<%= name %>')
+          .get('/iam/roles')
           .set('Authorization', 'bearer ' + accessToken)
           .expect(200);
         expect(response.body.length).toBe(1);
       });
 
-      it('should fail to get <%= (name) %> if user has no wildcard resource in policy', async () => {
+      it('should fail to get roles if user has no wildcard resource in policy', async () => {
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -158,17 +160,17 @@ describe('<%= classify(name) %> e2e', () => {
           {
             name: 'FooPolicy',
             effect: Effect.Allow,
-            actions: [`${<%= singular(classify(name)) %>Scope}:${List<%= classify(name) %>}`],
+            actions: [`${RoleScope}:${ListRoles}`],
             resources: ['000000000000'],
           },
         );
         await request(app.getHttpServer())
-          .get('/<%= name %>')
+          .get('/iam/roles')
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
-      it('should fail to get <%= (name) %> if user has deny effect and wildcard resource in policy', async () => {
+      it('should fail to get roles if user has deny effect and wildcard resource in policy', async () => {
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -177,17 +179,17 @@ describe('<%= classify(name) %> e2e', () => {
           {
             name: 'FooPolicy',
             effect: Effect.Deny,
-            actions: [`${<%= singular(classify(name)) %>Scope}:${List<%= classify(name) %>}`],
+            actions: [`${RoleScope}:${ListRoles}`],
             resources: ['*'],
           },
         );
         await request(app.getHttpServer())
-          .get('/<%= name %>')
+          .get('/iam/roles')
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
-      it('should fail to get <%= (name) %> if user has deny effect and no wildcard resource in policy', async () => {
+      it('should fail to get roles if user has deny effect and no wildcard resource in policy', async () => {
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -196,36 +198,36 @@ describe('<%= classify(name) %> e2e', () => {
           {
             name: 'FooPolicy',
             effect: Effect.Deny,
-            actions: [`${<%= singular(classify(name)) %>Scope}:${List<%= classify(name) %>}`],
+            actions: [`${RoleScope}:${ListRoles}`],
             resources: ['000000000000'],
           },
         );
         await request(app.getHttpServer())
-          .get('/<%= name %>')
+          .get('/iam/roles')
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
     });
 
-    describe('GET /<%= name %>/{id}', () => {
-      it("should fail to get <%= singular(name) %> if user it's not logged in", async () => {
+    describe('GET /iam/roles/{id}', () => {
+      it("should fail to get role if user it's not logged in", async () => {
         await request(app.getHttpServer())
-          .get('/<%= name %>/000000000001')
+          .get('/iam/roles/000000000001')
           .expect(401);
       });
 
-      it('should fail to get <%= singular(name) %> if user has no policies', async () => {
+      it('should fail to get role if user has no policies', async () => {
         const accessToken = await e2eUtils.createUserAndLogin({
           email: 'foo@example.com',
           password: 'bar',
         });
         await request(app.getHttpServer())
-          .get('/<%= name %>/000000000001')
+          .get('/iam/roles/000000000001')
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
-      it('should get <%= (name) %> if user has wildcard resource in policy', async () => {
+      it('should get roles if user has wildcard resource in policy', async () => {
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -234,19 +236,19 @@ describe('<%= classify(name) %> e2e', () => {
           {
             name: 'FooPolicy',
             effect: Effect.Allow,
-            actions: [`${<%= singular(classify(name)) %>Scope}:${Get<%= singular(classify(name)) %>}`],
+            actions: [`${RoleScope}:${GetRole}`],
             resources: ['*'],
           },
         );
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
+        const savedRole = await createRole(createRoleDto);
         const response = await request(app.getHttpServer())
-          .get(`/<%= name %>/${saved<%= singular(classify(name)) %>._id}`)
+          .get(`/iam/roles/${savedRole._id}`)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(200);
         expect(response.body._id).toBeDefined();
       });
 
-      it('should fail to get <%= singular(name) %> if user has deny effect and wildcard resource in policy', async () => {
+      it('should fail to get role if user has deny effect and wildcard resource in policy', async () => {
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -255,18 +257,18 @@ describe('<%= classify(name) %> e2e', () => {
           {
             name: 'FooPolicy',
             effect: Effect.Deny,
-            actions: [`${<%= singular(classify(name)) %>Scope}:${Get<%= singular(classify(name)) %>}`],
+            actions: [`${RoleScope}:${GetRole}`],
             resources: ['*'],
           },
         );
         await request(app.getHttpServer())
-          .get('/<%= name %>/000000000001')
+          .get('/iam/roles/000000000001')
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
-      it('should get <%= singular(name) %> if user has allow effect and the resource is informed with the same id of the policy that is trying to get', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
+      it('should get role if user has allow effect and the resource is informed with the same id of the policy that is trying to get', async () => {
+        const savedRole = await createRole(createRoleDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -275,19 +277,19 @@ describe('<%= classify(name) %> e2e', () => {
           {
             name: 'FooPolicy',
             effect: Effect.Allow,
-            actions: [`${<%= singular(classify(name)) %>Scope}:${Get<%= singular(classify(name)) %>}`],
-            resources: [saved<%= singular(classify(name)) %>._id.toString()],
+            actions: [`${RoleScope}:${GetRole}`],
+            resources: [savedRole._id.toString()],
           },
         );
         const response = await request(app.getHttpServer())
-          .get(`/<%= name %>/${saved<%= singular(classify(name)) %>._id}`)
+          .get(`/iam/roles/${savedRole._id}`)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(200);
-          expect(response.body._id).toBeDefined();
+        expect(response.body._id).toBeDefined();
       });
 
-      it('should fail to get <%= singular(name) %> if user has deny effect and no wildcard resource in policy', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
+      it('should fail to get role if user has deny effect and no wildcard resource in policy', async () => {
+        const savedRole = await createRole(createRoleDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -296,18 +298,18 @@ describe('<%= classify(name) %> e2e', () => {
           {
             name: 'FooPolicy',
             effect: Effect.Deny,
-            actions: [`${<%= singular(classify(name)) %>Scope}:${Get<%= singular(classify(name)) %>}`],
-            resources: [saved<%= singular(classify(name)) %>._id.toString()],
+            actions: [`${RoleScope}:${GetRole}`],
+            resources: [savedRole._id.toString()],
           },
         );
         await request(app.getHttpServer())
-          .get(`/<%= name %>/${saved<%= singular(classify(name)) %>._id}`)
+          .get(`/iam/roles/${savedRole._id}`)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
-      it('should fail to get <%= singular(name) %> if user has allow effect and the resource is informed with the same id of the polcy that is trying to get and has deny effect with wildcard', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
+      it('should fail to get role if user has allow effect and the resource is informed with the same id of the polcy that is trying to get and has deny effect with wildcard', async () => {
+        const savedRole = await createRole(createRoleDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -317,25 +319,25 @@ describe('<%= classify(name) %> e2e', () => {
             {
               name: 'FooPolicy',
               effect: Effect.Allow,
-              actions: [`${<%= singular(classify(name)) %>Scope}:${Get<%= singular(classify(name)) %>}`],
-              resources: [saved<%= singular(classify(name)) %>._id.toString()],
+              actions: [`${RoleScope}:${GetRole}`],
+              resources: [savedRole._id.toString()],
             },
             {
               name: 'BarPolicy',
               effect: Effect.Deny,
-              actions: [`${<%= singular(classify(name)) %>Scope}:${Get<%= singular(classify(name)) %>}`],
+              actions: [`${RoleScope}:${GetRole}`],
               resources: ['*'],
             },
           ],
         );
         await request(app.getHttpServer())
-          .get(`/<%= name %>/${saved<%= singular(classify(name)) %>._id}`)
+          .get(`/iam/roles/${savedRole._id}`)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
-      it('should fail to get <%= singular(name) %> if user has allow effect with wildcard and has deny effect and the resource is informed with the same id of the policy that is trying to get', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
+      it('should fail to get role if user has allow effect with wildcard and has deny effect and the resource is informed with the same id of the policy that is trying to get', async () => {
+        const savedRole = await createRole(createRoleDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -345,25 +347,25 @@ describe('<%= classify(name) %> e2e', () => {
             {
               name: 'FooPolicy',
               effect: Effect.Allow,
-              actions: [`${<%= singular(classify(name)) %>Scope}:${Get<%= singular(classify(name)) %>}`],
+              actions: [`${RoleScope}:${GetRole}`],
               resources: ['*'],
             },
             {
               name: 'BarPolicy',
               effect: Effect.Deny,
-              actions: [`${<%= singular(classify(name)) %>Scope}:${Get<%= singular(classify(name)) %>}`],
-              resources: [saved<%= singular(classify(name)) %>._id.toString()],
+              actions: [`${RoleScope}:${GetRole}`],
+              resources: [savedRole._id.toString()],
             },
           ],
         );
         await request(app.getHttpServer())
-          .get(`/<%= name %>/${saved<%= singular(classify(name)) %>._id}`)
+          .get(`/iam/roles/${savedRole._id}`)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
-      it('should get <%= singular(name) %> if user has allow effect with wildcard and has deny effect and the resource is informed with different id of the policy that is trying to get', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
+      it('should get role if user has allow effect with wildcard and has deny effect and the resource is informed with different id of the policy that is trying to get', async () => {
+        const savedRole = await createRole(createRoleDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -373,46 +375,46 @@ describe('<%= classify(name) %> e2e', () => {
             {
               name: 'FooPolicy',
               effect: Effect.Allow,
-              actions: [`${<%= singular(classify(name)) %>Scope}:${Get<%= singular(classify(name)) %>}`],
+              actions: [`${RoleScope}:${GetRole}`],
               resources: ['*'],
             },
             {
               name: 'BarPolicy',
               effect: Effect.Deny,
-              actions: [`${<%= singular(classify(name)) %>Scope}:${Get<%= singular(classify(name)) %>}`],
+              actions: [`${RoleScope}:${GetRole}`],
               resources: ['000000000000'],
             },
           ],
         );
         const response = await request(app.getHttpServer())
-          .get(`/<%= name %>/${saved<%= singular(classify(name)) %>._id}`)
+          .get(`/iam/roles/${savedRole._id}`)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(200);
-          expect(response.body._id).toBeDefined();
+        expect(response.body._id).toBeDefined();
       });
     });
 
-    describe('POST /<%= name %>', () => {
-      it("should fail to create <%= singular(name) %> if user it's not logged in", async () => {
+    describe('POST /iam/roles', () => {
+      it("should fail to create role if user it's not logged in", async () => {
         await request(app.getHttpServer())
-          .post('/<%= name %>')
-          .send(create<%= singular(classify(name)) %>Dto)
+          .post('/iam/roles')
+          .send(createRoleDto)
           .expect(401);
       });
 
-      it('should fail to create <%= singular(name) %> if user has no policies', async () => {
+      it('should fail to create role if user has no policies', async () => {
         const accessToken = await e2eUtils.createUserAndLogin({
           email: 'foo@example.com',
           password: 'bar',
         });
         await request(app.getHttpServer())
-          .post('/<%= name %>')
-          .send(create<%= singular(classify(name)) %>Dto)
+          .post('/iam/roles')
+          .send(createRoleDto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
-      it('should create <%= singular(name) %> if user has wildcard resource in policy', async () => {
+      it('should create role if user has wildcard resource in policy', async () => {
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -421,19 +423,19 @@ describe('<%= classify(name) %> e2e', () => {
           {
             name: 'FooPolicy',
             effect: Effect.Allow,
-            actions: [`${<%= singular(classify(name)) %>Scope}:${Create<%= singular(classify(name)) %>}`],
+            actions: [`${RoleScope}:${CreateRole}`],
             resources: ['*'],
           },
         );
         const response = await request(app.getHttpServer())
-          .post('/<%= name %>')
-          .send(create<%= singular(classify(name)) %>Dto)
+          .post('/iam/roles')
+          .send(createRoleDto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(201);
-          expect(response.body._id).toBeDefined();
+        expect(response.body._id).toBeDefined();
       });
 
-      it('should fail to create <%= singular(name) %> if user has resource informed in policy', async () => {
+      it('should fail to create role if user has resource informed in policy', async () => {
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -442,43 +444,43 @@ describe('<%= classify(name) %> e2e', () => {
           {
             name: 'FooPolicy',
             effect: Effect.Allow,
-            actions: [`${<%= singular(classify(name)) %>Scope}:${Create<%= singular(classify(name)) %>}`],
+            actions: [`${RoleScope}:${CreateRole}`],
             resources: ['000000000000'],
           },
         );
         await request(app.getHttpServer())
-          .post('/<%= name %>')
-          .send(create<%= singular(classify(name)) %>Dto)
+          .post('/iam/roles')
+          .send(createRoleDto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
-      it('should fail to create <%= singular(name) %> if the fields are not correct', async () => {
+      it('should fail to create role if the fields are not correct', async () => {
         //TODO Must implement this test after create the real schema
       });
     });
 
-    describe('PUT /<%= name %>/{id}', () => {
-      it("should fail to update <%= singular(name) %> if user it's not logged in", async () => {
+    describe('PUT /iam/roles/{id}', () => {
+      it("should fail to update role if user it's not logged in", async () => {
         await request(app.getHttpServer())
-          .put('/<%= name %>/000000000001')
-          .send(update<%= singular(classify(name)) %>Dto)
+          .put('/iam/roles/000000000001')
+          .send(updateRoleDto)
           .expect(401);
       });
 
-      it('should fail to update <%= singular(name) %> if user has no policies', async () => {
+      it('should fail to update role if user has no policies', async () => {
         const accessToken = await e2eUtils.createUserAndLogin({
           email: 'foo@example.com',
           password: 'bar',
         });
         await request(app.getHttpServer())
-          .put('/<%= name %>/000000000001')
-          .send(update<%= singular(classify(name)) %>Dto)
+          .put('/iam/roles/000000000001')
+          .send(updateRoleDto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
-      it('should update <%= singular(name) %> if user has wildcard resource in policy', async () => {
+      it('should update role if user has wildcard resource in policy', async () => {
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -487,20 +489,20 @@ describe('<%= classify(name) %> e2e', () => {
           {
             name: 'FooPolicy',
             effect: Effect.Allow,
-            actions: [`${<%= singular(classify(name)) %>Scope}:${Update<%= singular(classify(name)) %>}`],
+            actions: [`${RoleScope}:${UpdateRole}`],
             resources: ['*'],
           },
         );
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
+        const savedRole = await createRole(createRoleDto);
         const response = await request(app.getHttpServer())
-          .put(`/<%= name %>/${saved<%= singular(classify(name)) %>._id}`)
-          .send(update<%= singular(classify(name)) %>Dto)
+          .put(`/iam/roles/${savedRole._id}`)
+          .send(updateRoleDto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(200);
-          expect(response.body._id).toBe(saved<%= singular(classify(name)) %>._id.toString());
+        expect(response.body._id).toBe(savedRole._id.toString());
       });
 
-      it('should fail to update <%= singular(name) %> if user has deny effect and wildcard resource in policy', async () => {
+      it('should fail to update role if user has deny effect and wildcard resource in policy', async () => {
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -509,19 +511,19 @@ describe('<%= classify(name) %> e2e', () => {
           {
             name: 'FooPolicy',
             effect: Effect.Deny,
-            actions: [`${<%= singular(classify(name)) %>Scope}:${Update<%= singular(classify(name)) %>}`],
+            actions: [`${RoleScope}:${UpdateRole}`],
             resources: ['*'],
           },
         );
         await request(app.getHttpServer())
-          .put('/<%= name %>/000000000001')
-          .send(update<%= singular(classify(name)) %>Dto)
+          .put('/iam/roles/000000000001')
+          .send(updateRoleDto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
-      it('should update <%= singular(name) %> if user has allow effect and the resource is informed with the same id of the policy that is trying to get', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
+      it('should update role if user has allow effect and the resource is informed with the same id of the policy that is trying to get', async () => {
+        const savedRole = await createRole(createRoleDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -530,20 +532,20 @@ describe('<%= classify(name) %> e2e', () => {
           {
             name: 'FooPolicy',
             effect: Effect.Allow,
-            actions: [`${<%= singular(classify(name)) %>Scope}:${Update<%= singular(classify(name)) %>}`],
-            resources: [saved<%= singular(classify(name)) %>._id.toString()],
+            actions: [`${RoleScope}:${UpdateRole}`],
+            resources: [savedRole._id.toString()],
           },
         );
         const response = await request(app.getHttpServer())
-          .put(`/<%= name %>/${saved<%= singular(classify(name)) %>._id}`)
-          .send(update<%= singular(classify(name)) %>Dto)
+          .put(`/iam/roles/${savedRole._id}`)
+          .send(updateRoleDto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(200);
-          expect(response.body._id).toBeDefined();
+        expect(response.body._id).toBeDefined();
       });
 
-      it('should fail to update <%= singular(name) %> if user has deny effect and no wildcard resource in policy', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
+      it('should fail to update role if user has deny effect and no wildcard resource in policy', async () => {
+        const savedRole = await createRole(createRoleDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -552,19 +554,19 @@ describe('<%= classify(name) %> e2e', () => {
           {
             name: 'FooPolicy',
             effect: Effect.Deny,
-            actions: [`${<%= singular(classify(name)) %>Scope}:${Update<%= singular(classify(name)) %>}`],
-            resources: [saved<%= singular(classify(name)) %>._id.toString()],
+            actions: [`${RoleScope}:${UpdateRole}`],
+            resources: [savedRole._id.toString()],
           },
         );
         await request(app.getHttpServer())
-          .put(`/<%= name %>/${saved<%= singular(classify(name)) %>._id}`)
-          .send(create<%= singular(classify(name)) %>Dto)
+          .put(`/iam/roles/${savedRole._id}`)
+          .send(createRoleDto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
       it('should fail to update polcy if user has allow effect and the resource is informed with the same id of the polcy that is trying to get and has deny effect with wildcard', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
+        const savedRole = await createRole(createRoleDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -574,26 +576,26 @@ describe('<%= classify(name) %> e2e', () => {
             {
               name: 'FooPolicy',
               effect: Effect.Allow,
-              actions: [`${<%= singular(classify(name)) %>Scope}:${Update<%= singular(classify(name)) %>}`],
-              resources: [saved<%= singular(classify(name)) %>._id.toString()],
+              actions: [`${RoleScope}:${UpdateRole}`],
+              resources: [savedRole._id.toString()],
             },
             {
               name: 'BarPolicy',
               effect: Effect.Deny,
-              actions: [`${<%= singular(classify(name)) %>Scope}:${Update<%= singular(classify(name)) %>}`],
+              actions: [`${RoleScope}:${UpdateRole}`],
               resources: ['*'],
             },
           ],
         );
         await request(app.getHttpServer())
-          .put(`/<%= name %>/${saved<%= singular(classify(name)) %>._id}`)
-          .send(create<%= singular(classify(name)) %>Dto)
+          .put(`/iam/roles/${savedRole._id}`)
+          .send(createRoleDto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
-      it('should fail to update <%= singular(name) %> if user has allow effect with wildcard and has deny effect and the resource is informed with the same id of the policy that is trying to get', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
+      it('should fail to update role if user has allow effect with wildcard and has deny effect and the resource is informed with the same id of the policy that is trying to get', async () => {
+        const savedRole = await createRole(createRoleDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -603,26 +605,26 @@ describe('<%= classify(name) %> e2e', () => {
             {
               name: 'FooPolicy',
               effect: Effect.Allow,
-              actions: [`${<%= singular(classify(name)) %>Scope}:${Update<%= singular(classify(name)) %>}`],
+              actions: [`${RoleScope}:${UpdateRole}`],
               resources: ['*'],
             },
             {
               name: 'BarPolicy',
               effect: Effect.Deny,
-              actions: [`${<%= singular(classify(name)) %>Scope}:${Update<%= singular(classify(name)) %>}`],
-              resources: [saved<%= singular(classify(name)) %>._id.toString()],
+              actions: [`${RoleScope}:${UpdateRole}`],
+              resources: [savedRole._id.toString()],
             },
           ],
         );
         await request(app.getHttpServer())
-          .put(`/<%= name %>/${saved<%= singular(classify(name)) %>._id}`)
-          .send(create<%= singular(classify(name)) %>Dto)
+          .put(`/iam/roles/${savedRole._id}`)
+          .send(createRoleDto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
-      it('should update <%= singular(name) %> if user has allow effect with wildcard and has deny effect and the resource is informed with different id of the policy that is trying to get', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
+      it('should update role if user has allow effect with wildcard and has deny effect and the resource is informed with different id of the policy that is trying to get', async () => {
+        const savedRole = await createRole(createRoleDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -632,49 +634,49 @@ describe('<%= classify(name) %> e2e', () => {
             {
               name: 'FooPolicy',
               effect: Effect.Allow,
-              actions: [`${<%= singular(classify(name)) %>Scope}:${Update<%= singular(classify(name)) %>}`],
+              actions: [`${RoleScope}:${UpdateRole}`],
               resources: ['*'],
             },
             {
               name: 'BarPolicy',
               effect: Effect.Deny,
-              actions: [`${<%= singular(classify(name)) %>Scope}:${Update<%= singular(classify(name)) %>}`],
+              actions: [`${RoleScope}:${UpdateRole}`],
               resources: ['000000000000'],
             },
           ],
         );
         const response = await request(app.getHttpServer())
-          .put(`/<%= name %>/${saved<%= singular(classify(name)) %>._id}`)
-          .send(update<%= singular(classify(name)) %>Dto)
+          .put(`/iam/roles/${savedRole._id}`)
+          .send(updateRoleDto)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(200);
-          expect(response.body._id).toBeDefined();
+        expect(response.body._id).toBeDefined();
       });
 
-      it('should fail to update <%= singular(name) %> if the fields are not correct', async () => {
+      it('should fail to update role if the fields are not correct', async () => {
         //TODO Must implement this test after create the real schema
       });
     });
 
-    describe('DELETE /<%= name %>/{id}', () => {
-      it("should fail to remove <%= singular(name) %> if user it's not logged in", async () => {
+    describe('DELETE /iam/roles/{id}', () => {
+      it("should fail to remove role if user it's not logged in", async () => {
         await request(app.getHttpServer())
-          .delete('/<%= name %>/000000000001')
+          .delete('/iam/roles/000000000001')
           .expect(401);
       });
 
-      it('should fail to remove <%= singular(name) %> if user has no policies', async () => {
+      it('should fail to remove role if user has no policies', async () => {
         const accessToken = await e2eUtils.createUserAndLogin({
           email: 'foo@example.com',
           password: 'bar',
         });
         await request(app.getHttpServer())
-          .delete('/<%= name %>/000000000001')
+          .delete('/iam/roles/000000000001')
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
-      it('should remove <%= singular(name) %> if user has wildcard resource in policy', async () => {
+      it('should remove role if user has wildcard resource in policy', async () => {
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -683,18 +685,18 @@ describe('<%= classify(name) %> e2e', () => {
           {
             name: 'FooPolicy',
             effect: Effect.Allow,
-            actions: [`${<%= singular(classify(name)) %>Scope}:${Remove<%= singular(classify(name)) %>}`],
+            actions: [`${RoleScope}:${RemoveRole}`],
             resources: ['*'],
           },
         );
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
+        const savedRole = await createRole(createRoleDto);
         await request(app.getHttpServer())
-          .delete(`/<%= name %>/${saved<%= singular(classify(name)) %>._id}`)
+          .delete(`/iam/roles/${savedRole._id}`)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(200);
       });
 
-      it('should fail to remove <%= singular(name) %> if user has deny effect and wildcard resource in policy', async () => {
+      it('should fail to remove role if user has deny effect and wildcard resource in policy', async () => {
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -703,18 +705,18 @@ describe('<%= classify(name) %> e2e', () => {
           {
             name: 'FooPolicy',
             effect: Effect.Deny,
-            actions: [`${<%= singular(classify(name)) %>Scope}:${Remove<%= singular(classify(name)) %>}`],
+            actions: [`${RoleScope}:${RemoveRole}`],
             resources: ['*'],
           },
         );
         await request(app.getHttpServer())
-          .delete('/<%= name %>/000000000001')
+          .delete('/iam/roles/000000000001')
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
-      it('should remove <%= singular(name) %> if user has allow effect and the resource is informed with the same id of the policy that is trying to get', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
+      it('should remove role if user has allow effect and the resource is informed with the same id of the policy that is trying to get', async () => {
+        const savedRole = await createRole(createRoleDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -723,18 +725,18 @@ describe('<%= classify(name) %> e2e', () => {
           {
             name: 'FooPolicy',
             effect: Effect.Allow,
-            actions: [`${<%= singular(classify(name)) %>Scope}:${Remove<%= singular(classify(name)) %>}`],
-            resources: [saved<%= singular(classify(name)) %>._id.toString()],
+            actions: [`${RoleScope}:${RemoveRole}`],
+            resources: [savedRole._id.toString()],
           },
         );
         await request(app.getHttpServer())
-          .delete(`/<%= name %>/${saved<%= singular(classify(name)) %>._id}`)
+          .delete(`/iam/roles/${savedRole._id}`)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(200);
       });
 
-      it('should fail to remove <%= singular(name) %> if user has deny effect and no wildcard resource in policy', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
+      it('should fail to remove role if user has deny effect and no wildcard resource in policy', async () => {
+        const savedRole = await createRole(createRoleDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -743,18 +745,18 @@ describe('<%= classify(name) %> e2e', () => {
           {
             name: 'FooPolicy',
             effect: Effect.Deny,
-            actions: [`${<%= singular(classify(name)) %>Scope}:${Remove<%= singular(classify(name)) %>}`],
-            resources: [saved<%= singular(classify(name)) %>._id.toString()],
+            actions: [`${RoleScope}:${RemoveRole}`],
+            resources: [savedRole._id.toString()],
           },
         );
         await request(app.getHttpServer())
-          .delete(`/<%= name %>/${saved<%= singular(classify(name)) %>._id}`)
+          .delete(`/iam/roles/${savedRole._id}`)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
       it('should fail to remove polcy if user has allow effect and the resource is informed with the same id of the polcy that is trying to get and has deny effect with wildcard', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
+        const savedRole = await createRole(createRoleDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -764,25 +766,25 @@ describe('<%= classify(name) %> e2e', () => {
             {
               name: 'FooPolicy',
               effect: Effect.Allow,
-              actions: [`${<%= singular(classify(name)) %>Scope}:${Remove<%= singular(classify(name)) %>}`],
-              resources: [saved<%= singular(classify(name)) %>._id.toString()],
+              actions: [`${RoleScope}:${RemoveRole}`],
+              resources: [savedRole._id.toString()],
             },
             {
               name: 'BarPolicy',
               effect: Effect.Deny,
-              actions: [`${<%= singular(classify(name)) %>Scope}:${Remove<%= singular(classify(name)) %>}`],
+              actions: [`${RoleScope}:${RemoveRole}`],
               resources: ['*'],
             },
           ],
         );
         await request(app.getHttpServer())
-          .delete(`/<%= name %>/${saved<%= singular(classify(name)) %>._id}`)
+          .delete(`/iam/roles/${savedRole._id}`)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
-      it('should fail to remove <%= singular(name) %> if user has allow effect with wildcard and has deny effect and the resource is informed with the same id of the policy that is trying to get', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
+      it('should fail to remove role if user has allow effect with wildcard and has deny effect and the resource is informed with the same id of the policy that is trying to get', async () => {
+        const savedRole = await createRole(createRoleDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -792,25 +794,25 @@ describe('<%= classify(name) %> e2e', () => {
             {
               name: 'FooPolicy',
               effect: Effect.Allow,
-              actions: [`${<%= singular(classify(name)) %>Scope}:${Remove<%= singular(classify(name)) %>}`],
+              actions: [`${RoleScope}:${RemoveRole}`],
               resources: ['*'],
             },
             {
               name: 'BarPolicy',
               effect: Effect.Deny,
-              actions: [`${<%= singular(classify(name)) %>Scope}:${Remove<%= singular(classify(name)) %>}`],
-              resources: [saved<%= singular(classify(name)) %>._id.toString()],
+              actions: [`${RoleScope}:${RemoveRole}`],
+              resources: [savedRole._id.toString()],
             },
           ],
         );
         await request(app.getHttpServer())
-          .delete(`/<%= name %>/${saved<%= singular(classify(name)) %>._id}`)
+          .delete(`/iam/roles/${savedRole._id}`)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(403);
       });
 
-      it('should remove <%= singular(name) %> if user has allow effect with wildcard and has deny effect and the resource is informed with different id of the policy that is trying to get', async () => {
-        const saved<%= singular(classify(name)) %> = await create<%= singular(classify(name)) %>(create<%= singular(classify(name)) %>Dto);
+      it('should remove role if user has allow effect with wildcard and has deny effect and the resource is informed with different id of the policy that is trying to get', async () => {
+        const savedRole = await createRole(createRoleDto);
         const accessToken = await e2eUtils.createUserAndLogin(
           {
             email: 'foo@example.com',
@@ -820,19 +822,99 @@ describe('<%= classify(name) %> e2e', () => {
             {
               name: 'FooPolicy',
               effect: Effect.Allow,
-              actions: [`${<%= singular(classify(name)) %>Scope}:${Remove<%= singular(classify(name)) %>}`],
+              actions: [`${RoleScope}:${RemoveRole}`],
               resources: ['*'],
             },
             {
               name: 'BarPolicy',
               effect: Effect.Deny,
-              actions: [`${<%= singular(classify(name)) %>Scope}:${Remove<%= singular(classify(name)) %>}`],
+              actions: [`${RoleScope}:${RemoveRole}`],
               resources: ['000000000000'],
             },
           ],
         );
         await request(app.getHttpServer())
-          .delete(`/<%= name %>/${saved<%= singular(classify(name)) %>._id}`)
+          .delete(`/iam/roles/${savedRole._id}`)
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(200);
+      });
+    });
+
+    describe('POST /iam/roles/{roleId}/addToUser/{userId}', () => {
+      it("should fail to add a role to an user if user it's not logged in", async () => {
+        await request(app.getHttpServer())
+          .post('/iam/roles/000000000001/addToUser/000000000002')
+          .expect(401);
+      });
+
+      it('should fail to add a role to an user if user has no policies', async () => {
+        const accessToken = await e2eUtils.createUserAndLogin({
+          email: 'foo@example.com',
+          password: 'bar',
+        });
+        await request(app.getHttpServer())
+          .post('/iam/roles/000000000001/addToUser/000000000002')
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(403);
+      });
+
+      it('should be able to add a role to an user if user has wildcard resource in policy', async () => {
+        const user = await e2eUtils.createUser(
+          {
+            email: 'foo@example.com',
+            password: 'bar',
+          },
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: [`${RoleScope}:${AddRoleToUser}`],
+            resources: ['*'],
+          },
+        );
+        const accessToken = await e2eUtils.login(user);
+        const savedRole = await createRole(createRoleDto);
+        await request(app.getHttpServer())
+          .post(`/iam/roles/${savedRole._id}/addToUser/${user._id}`)
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(200);
+      });
+    });
+
+    describe('DELETE /iam/roles/{roleId}/removeFromUser/{userId}', () => {
+      it("should fail to remove a role from an user if user it's not logged in", async () => {
+        await request(app.getHttpServer())
+          .delete('/iam/roles/000000000001/removeFromUser/000000000002')
+          .expect(401);
+      });
+
+      it('should fail to remove a role from an user if user has no policies', async () => {
+        const accessToken = await e2eUtils.createUserAndLogin({
+          email: 'foo@example.com',
+          password: 'bar',
+        });
+        await request(app.getHttpServer())
+          .delete('/iam/roles/000000000001/removeFromUser/000000000002')
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(403);
+      });
+
+      it('should be able to remove a role from an user if user has wildcard resource in policy', async () => {
+        const user = await e2eUtils.createUser(
+          {
+            email: 'foo@example.com',
+            password: 'bar',
+          },
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: [`${RoleScope}:${RemoveRoleFromUser}`],
+            resources: ['*'],
+          },
+        );
+        const accessToken = await e2eUtils.login(user);
+        const savedRole = await createRole(createRoleDto);
+        await request(app.getHttpServer())
+          .delete(`/iam/roles/${savedRole._id}/removeFromUser/${user._id}`)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(200);
       });
