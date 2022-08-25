@@ -1,10 +1,9 @@
 {
   "name": "abac-api",
-  "version": "0.0.1",
-  "description": "",
-  "author": "",
-  "private": true,
-  "license": "UNLICENSED",
+  "version": "0.1.0",
+  "description": "Attribute Base Access Control Application in Nestjs",
+  "author": "Ruben J Garcia <hola@rubenjgarcia.cloud>",
+  "license": "MIT",
   "scripts": {
     "prebuild": "rimraf dist",
     "build": "nest build",

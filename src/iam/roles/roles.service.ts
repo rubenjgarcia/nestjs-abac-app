@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { ForbiddenError, subject } from '@casl/ability';
 import { AccessibleRecordModel } from '@casl/mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import { Types } from 'mongoose';
@@ -8,7 +7,6 @@ import {
   AddRoleToUser,
   RemoveRoleFromUser,
   RoleCrudActions,
-  RoleScope,
 } from './roles.actions';
 import { CrudService } from '../../framework/crud.service';
 import { WithPolicies } from '../../framework/factories/casl-ability.factory';
