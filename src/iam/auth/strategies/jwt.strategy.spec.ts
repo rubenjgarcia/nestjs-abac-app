@@ -124,6 +124,13 @@ describe('JWT Strategy', () => {
             unit: roleUnit,
           },
         ],
+      })
+      .calledWith('with2FA@example.com')
+      .mockResolvedValue({
+        _id: new Types.ObjectId('000000000000'),
+        email: 'with2FA@example.com',
+        unit,
+        policies,
       });
 
     const module = await Test.createTestingModule({
@@ -152,6 +159,7 @@ describe('JWT Strategy', () => {
         sub,
         unitId: unit._id.toString(),
         organizationId: organization._id.toString(),
+        twoFactorAuthentication: false,
       });
 
       expect(payload.userId).toBe(sub);
@@ -175,6 +183,7 @@ describe('JWT Strategy', () => {
         sub,
         unitId: unit._id.toString(),
         organizationId: organization._id.toString(),
+        twoFactorAuthentication: false,
       });
 
       expect(payload.userId).toBe(sub);
@@ -194,6 +203,7 @@ describe('JWT Strategy', () => {
         sub,
         unitId: unit._id.toString(),
         organizationId: organization._id.toString(),
+        twoFactorAuthentication: false,
       });
 
       expect(payload.userId).toBe(sub);
@@ -213,6 +223,7 @@ describe('JWT Strategy', () => {
         sub,
         unitId: unit._id.toString(),
         organizationId: organization._id.toString(),
+        twoFactorAuthentication: false,
       });
 
       expect(payload.userId).toBe(sub);
@@ -228,6 +239,7 @@ describe('JWT Strategy', () => {
         sub,
         unitId: unit._id.toString(),
         organizationId: organization._id.toString(),
+        twoFactorAuthentication: false,
       });
 
       expect(payload.userId).toBe(sub);
@@ -244,6 +256,7 @@ describe('JWT Strategy', () => {
         unitId: unit._id.toString(),
         organizationId: organization._id.toString(),
         roles: ['000000000000'],
+        twoFactorAuthentication: false,
       });
 
       expect(payload.userId).toBe(sub);
@@ -263,6 +276,7 @@ describe('JWT Strategy', () => {
         organizationId: organization._id.toString(),
         roles: [new Types.ObjectId('000000000000').toString()],
         roleId: new Types.ObjectId('000000000000').toString(),
+        twoFactorAuthentication: false,
       });
 
       expect(payload.userId).toBe(sub);
@@ -278,6 +292,40 @@ describe('JWT Strategy', () => {
       expect(payload.policies[0].effect).toBe(Effect.Allow);
       expect(payload.policies[0].actions[0]).toBe('Wee:Action');
       expect(payload.policies[0].resources[0]).toBe('*');
+    });
+
+    it('should create payload for user if the user has 2FA validated', async () => {
+      const payload = await jwtStrategy.validate({
+        email: 'with2FA@example.com',
+        sub,
+        unitId: unit._id.toString(),
+        organizationId: organization._id.toString(),
+        twoFactorAuthentication: true,
+        isSecondFactorAuthenticated: true,
+      });
+
+      expect(payload.userId).toBe(sub);
+      expect(payload.email).toBe('with2FA@example.com');
+      expect(payload.unitId).toBe(unit._id.toString());
+      expect(payload.organizationId).toBe(organization._id.toString());
+      expect(payload.policies.length).toBe(1);
+      expect(payload.policies[0].name).toBe('FooPolicy');
+      expect(payload.policies[0].effect).toBe(Effect.Allow);
+      expect(payload.policies[0].actions[0]).toBe('Foo:Action');
+      expect(payload.policies[0].resources[0]).toBe('*');
+      expect(payload.policies[0].resources[0]).toBe('*');
+    });
+
+    it('should fail if the user has no 2FA validated', async () => {
+      const payload = await jwtStrategy.validate({
+        email: 'with2FA@example.com',
+        sub,
+        unitId: unit._id.toString(),
+        organizationId: organization._id.toString(),
+        twoFactorAuthentication: true,
+      });
+
+      expect(payload).toBeUndefined();
     });
   });
 });

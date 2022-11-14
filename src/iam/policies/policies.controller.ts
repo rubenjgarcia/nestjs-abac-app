@@ -8,6 +8,7 @@ import {
   Post,
   Put,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import { PolicyService } from './policies.service';
 import { Policy } from './policies.schema';
@@ -21,8 +22,11 @@ import {
   RemovePolicyPolicyHandler,
 } from './policies.handler';
 import { CheckPolicies } from '../../framework/decorators/check-policies.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PoliciesGuard } from '../../framework/guards/policies.guard';
 
 @Controller(['iam/policies'])
+@UseGuards(JwtAuthGuard, PoliciesGuard)
 export class PolicyController {
   private readonly logger = new Logger(PolicyController.name);
 

@@ -8,6 +8,7 @@ import {
   UpdateUser,
   RemoveUser,
   AddGroupToUser,
+  Activate2FA,
 } from './users.actions';
 import { IPolicyHandler } from '../../framework/handler-definition';
 
@@ -80,5 +81,11 @@ export class AddGroupToUserPolicyHandler implements IPolicyHandler {
       AddGroupToUser,
       subject(UserScope, { _id: new Types.ObjectId(params[this.param]) }),
     );
+  }
+}
+
+export class Activate2FAPolicyHandler implements IPolicyHandler {
+  handle(ability: Ability) {
+    return ability.can(Activate2FA, subject(UserScope, {}));
   }
 }

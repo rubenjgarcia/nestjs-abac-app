@@ -8,6 +8,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import { AuthModule } from './auth.module';
+import { authenticator } from 'otplib';
 import { E2EUtils } from '../../framework/tests/e2e-utils';
 import { User, UserSchema } from '../users/users.schema';
 import { Policy, PolicySchema } from '../policies/policies.schema';
@@ -17,6 +18,7 @@ import {
   OrganizationSchema,
 } from '../organizations/organizations.schema';
 import { Role, RoleSchema } from '../roles/roles.schema';
+import { TwoFAService } from './2fa.service';
 
 describe('Auth e2e', () => {
   let app: INestApplication;
@@ -70,7 +72,7 @@ describe('Auth e2e', () => {
           },
         }),
       ],
-      providers: [JwtService],
+      providers: [JwtService, TwoFAService],
     }).compile();
 
     app = module.createNestApplication();
@@ -122,6 +124,56 @@ describe('Auth e2e', () => {
           .expect(200);
 
         expect(response.body.access_token).toBeDefined();
+      });
+    });
+
+    describe('POST /auth/validate2FA', () => {
+      it('should fail if user is not logged in', async () => {
+        await request(app.getHttpServer())
+          .post('/auth/validate2FA')
+          .send({ token: 'bar' })
+          .expect(401);
+      });
+
+      it('should validate if token is valid', async () => {
+        const secret = 'ABCDEFGH';
+        const user = await e2eUtils.createUserWithProperties(
+          {
+            email: 'foo@example.com',
+            password: 'bar',
+          },
+          [],
+          {
+            twoFactorAuthenticationSecret: secret,
+            isTwoFactorAuthenticationEnabled: true,
+          },
+        );
+        const accessToken = await e2eUtils.login(user);
+        await request(app.getHttpServer())
+          .post('/auth/validate2FA')
+          .send({ token: authenticator.generate(secret) })
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(200);
+      });
+
+      it('should fail if token is not valid', async () => {
+        const user = await e2eUtils.createUserWithProperties(
+          {
+            email: 'foo@example.com',
+            password: 'bar',
+          },
+          [],
+          {
+            twoFactorAuthenticationSecret: 'ABCDEFGH',
+            isTwoFactorAuthenticationEnabled: true,
+          },
+        );
+        const accessToken = await e2eUtils.login(user);
+        await request(app.getHttpServer())
+          .post('/auth/validate2FA')
+          .send({ token: 'AAAAAA' })
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(401);
       });
     });
 

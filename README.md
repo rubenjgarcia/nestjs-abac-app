@@ -85,6 +85,19 @@ Every entity of the application needs to belong to a `unit`. For example, `users
 
 When you do a query with an `user` you can only see entities that belongs to the `unit` of that `user`
 
+## Two Factor Authentication
+
+To enable 2FA the user must have `User:Activate2FA` policy
+
+Use the endpoint `POST /iam/2FA/generate` to generate a QR code to use with some 2FA application like https://github.com/google/google-authenticator o https://authy.com
+
+After setting the application with the QR code the user needs to validate it using the endpoint `POST /iam/2FA/validate` sending the code of the application
+
+If everything is ok, every time the user wants to login to use the API needs to do it in 2 steps:
+
+- Use the endpoint `POST /auth/login` to login to get the JWT Token
+- Use the JWT token to call the `POST /auth/validate2FA` endpoint sending the token. This endpoint will generate a new JWT token valid to call the endpoints of the API
+
 ## Extending the Application
 
 You can crete your own modules following [the principles described in Nestjs](https://docs.nestjs.com/modules). Then you need to implement the ABAC security in the controller
@@ -182,3 +195,4 @@ This will generate an user with email `foo@example.com` with password `bar`. Fir
 ## TODOs and improvements
 - [ ] Cache JWT lookups
 - [ ] Prompt and generate only files selected, i.e. controller, service, e2e-test, ...
+- [ ] Generate entities files based on a JSON schema

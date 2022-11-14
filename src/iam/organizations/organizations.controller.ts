@@ -8,6 +8,7 @@ import {
   Post,
   Put,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { OrganizationService } from './organizations.service';
@@ -22,8 +23,11 @@ import {
   RemoveOrganizationPolicyHandler,
 } from './organizations.handler';
 import { CheckPolicies } from '../../framework/decorators/check-policies.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PoliciesGuard } from '../../framework/guards/policies.guard';
 
 @Controller(['iam/organizations'])
+@UseGuards(JwtAuthGuard, PoliciesGuard)
 export class OrganizationController {
   private readonly logger = new Logger(OrganizationController.name);
 

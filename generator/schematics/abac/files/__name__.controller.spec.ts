@@ -4,7 +4,7 @@ import { <%= singular(classify(name)) %>Controller } from './<%= name %>.control
 import { <%= singular(classify(name)) %>Service } from './<%= name %>.service';
 import { Create<%= singular(classify(name)) %>Dto } from './dtos/create-<%= singular(name) %>.dto';
 import { Update<%= singular(classify(name)) %>Dto } from './dtos/update-<%= singular(name) %>.dto';
-import { Effect } from '../framework/factories/casl-ability.factory';
+import { Effect, CaslAbilityFactory, } from '../framework/factories/casl-ability.factory';
 import {
     Create<%= singular(classify(name)) %>,
     Get<%= singular(classify(name)) %>,
@@ -25,6 +25,7 @@ describe('<%= singular(classify(name)) %>Controller', () => {
     const module = await Test.createTestingModule({
       controllers: [<%= singular(classify(name)) %>Controller],
       providers: [
+        CaslAbilityFactory,
         {
           provide: <%= singular(classify(name)) %>Service,
           useValue: {

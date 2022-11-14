@@ -39,7 +39,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       organizationId = user.unit.organization._id.toString();
     }
 
-    return {
+    const response = {
       userId: payload.sub,
       email: payload.email,
       unitId,
@@ -48,5 +48,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       roles: payload.roles,
       policies,
     };
+
+    if (
+      !payload.twoFactorAuthentication ||
+      payload.isSecondFactorAuthenticated
+    ) {
+      return response;
+    }
   }
 }

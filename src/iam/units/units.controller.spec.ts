@@ -4,7 +4,10 @@ import { UnitController } from './units.controller';
 import { UnitService } from './units.service';
 import { CreateUnitDto } from './dtos/create-unit.dto';
 import { UpdateUnitDto } from './dtos/update-unit.dto';
-import { Effect } from '../../framework/factories/casl-ability.factory';
+import {
+  CaslAbilityFactory,
+  Effect,
+} from '../../framework/factories/casl-ability.factory';
 import {
   CreateUnit,
   GetUnit,
@@ -26,6 +29,7 @@ describe('UnitController', () => {
     const module = await Test.createTestingModule({
       controllers: [UnitController],
       providers: [
+        CaslAbilityFactory,
         {
           provide: UnitService,
           useValue: {

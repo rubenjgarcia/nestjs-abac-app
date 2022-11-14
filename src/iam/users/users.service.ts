@@ -1,15 +1,21 @@
 import * as bcrypt from 'bcrypt';
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { AccessibleRecordModel } from '@casl/mongoose';
 import { Types, Error } from 'mongoose';
+import { ConfigService } from '@nestjs/config';
 import { User, UserDocument } from './users.schema';
 import { WithPolicies } from '../../framework/factories/casl-ability.factory';
 import { CrudService } from '../../framework/crud.service';
 import { CreateUserDto } from './dtos/create-user.dto';
 import { UpdateUserDto } from './dtos/update-user.dto';
-import { AddGroupToUser, UserCrudActions } from './users.actions';
+import { AddGroupToUser, Activate2FA, UserCrudActions } from './users.actions';
 import { Group, GroupDocument } from '../groups/groups.schema';
+import { TwoFAService } from '../auth/2fa.service';
 
 @Injectable()
 export class UserService extends CrudService<UserDocument> {
@@ -18,6 +24,8 @@ export class UserService extends CrudService<UserDocument> {
     userModel: AccessibleRecordModel<UserDocument>,
     @InjectModel(Group.name)
     private readonly groupModel: AccessibleRecordModel<GroupDocument>,
+    private readonly config: ConfigService,
+    private readonly twoFAService: TwoFAService,
   ) {
     super(userModel, new UserCrudActions());
   }
@@ -51,6 +59,7 @@ export class UserService extends CrudService<UserDocument> {
       policies: false,
       groups: false,
       roles: false,
+      twoFactorAuthenticationSecret: false,
     });
   }
 
@@ -64,6 +73,7 @@ export class UserService extends CrudService<UserDocument> {
       policies: false,
       groups: false,
       roles: false,
+      twoFactorAuthenticationSecret: false,
     });
   }
 
@@ -78,6 +88,7 @@ export class UserService extends CrudService<UserDocument> {
       policies: false,
       groups: false,
       roles: false,
+      twoFactorAuthenticationSecret: false,
     });
   }
 
@@ -97,10 +108,17 @@ export class UserService extends CrudService<UserDocument> {
     return null;
   }
 
+  async findOneById(id: string): Promise<User> {
+    return await this.model
+      .findOne({ _id: new Types.ObjectId(id) })
+      .populate('unit')
+      .orFail();
+  }
+
   async findOneWithPolicies(email: string): Promise<User> {
     return await this.model
       .findOne({ email })
-      .select({ password: false })
+      .select({ password: false, twoFactorAuthenticationSecret: false })
       .populate([
         { path: 'policies' },
         { path: 'groups', populate: { path: 'policies' } },
@@ -135,5 +153,61 @@ export class UserService extends CrudService<UserDocument> {
       .select({
         policies: false,
       });
+  }
+
+  async generate2FA(
+    userId: string,
+    withPolicies: WithPolicies,
+    unitId: string,
+  ): Promise<string> {
+    const user = await this.model.findOne({ _id: new Types.ObjectId(userId) });
+    const secret = this.twoFAService.generateSecret();
+
+    const ability = this.caslAbilityFactory.createWithPolicies(withPolicies);
+    await this.model
+      .accessibleBy(ability, Activate2FA)
+      .updateOne(
+        { _id: new Types.ObjectId(userId), unit: new Types.ObjectId(unitId) },
+        { $set: { twoFactorAuthenticationSecret: secret } },
+      )
+      .orFail();
+
+    const otpauthUrl = this.twoFAService.generateUri(
+      user.email,
+      this.config.get<string>('APP_NAME'),
+      secret,
+    );
+
+    return otpauthUrl;
+  }
+
+  async validate2FA(
+    userId: string,
+    withPolicies: WithPolicies,
+    unitId: string,
+    token: string,
+  ): Promise<void> {
+    const user = await this.model.findOne({ _id: new Types.ObjectId(userId) });
+    if (!user.twoFactorAuthenticationSecret) {
+      throw new NotFoundException();
+    }
+
+    const isValidToken = this.twoFAService.verifyToken(
+      token,
+      user.twoFactorAuthenticationSecret,
+    );
+
+    if (!isValidToken) {
+      throw new BadRequestException();
+    }
+
+    const ability = this.caslAbilityFactory.createWithPolicies(withPolicies);
+    await this.model
+      .accessibleBy(ability, Activate2FA)
+      .updateOne(
+        { _id: new Types.ObjectId(userId), unit: new Types.ObjectId(unitId) },
+        { $set: { isTwoFactorAuthenticationEnabled: true } },
+      )
+      .orFail();
   }
 }

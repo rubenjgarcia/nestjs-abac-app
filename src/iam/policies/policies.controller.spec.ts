@@ -4,7 +4,10 @@ import * as mocks from 'node-mocks-http';
 import { PolicyController } from './policies.controller';
 import { PolicyService } from './policies.service';
 import { CreatePolicyDto } from './dtos/create-policy.dto';
-import { Effect } from '../../framework/factories/casl-ability.factory';
+import {
+  CaslAbilityFactory,
+  Effect,
+} from '../../framework/factories/casl-ability.factory';
 import {
   CreatePolicy,
   GetPolicy,
@@ -29,6 +32,7 @@ describe('PolicyController', () => {
     const module = await Test.createTestingModule({
       controllers: [PolicyController],
       providers: [
+        CaslAbilityFactory,
         {
           provide: PolicyService,
           useValue: {

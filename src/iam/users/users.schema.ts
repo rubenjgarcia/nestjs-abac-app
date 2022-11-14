@@ -24,6 +24,12 @@ export class User implements WithPolicies, Entity {
   @Prop({ required: true })
   password: string;
 
+  @Prop()
+  twoFactorAuthenticationSecret?: string;
+
+  @Prop()
+  isTwoFactorAuthenticationEnabled?: boolean;
+
   @Prop({
     type: [Types.ObjectId],
     ref: Policy.name,

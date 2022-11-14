@@ -4,7 +4,10 @@ import { RoleController } from './roles.controller';
 import { RoleService } from './roles.service';
 import { CreateRoleDto } from './dtos/create-role.dto';
 import { UpdateRoleDto } from './dtos/update-role.dto';
-import { Effect } from '../../framework/factories/casl-ability.factory';
+import {
+  CaslAbilityFactory,
+  Effect,
+} from '../../framework/factories/casl-ability.factory';
 import {
   CreateRole,
   GetRole,
@@ -26,6 +29,7 @@ describe('RoleController', () => {
     const module = await Test.createTestingModule({
       controllers: [RoleController],
       providers: [
+        CaslAbilityFactory,
         {
           provide: RoleService,
           useValue: {

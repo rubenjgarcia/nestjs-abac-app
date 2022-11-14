@@ -8,6 +8,7 @@ import {
   Post,
   Put,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import { <%= singular(classify(name)) %>Service } from './<%= name %>.service';
 import { <%= singular(classify(name)) %> } from './<%= name %>.schema';
@@ -21,8 +22,11 @@ import {
   Remove<%= singular(classify(name)) %>PolicyHandler,
 } from './<%= name %>.handler';
 import { CheckPolicies } from '../framework/decorators/check-policies.decorator';
+import { JwtAuthGuard } from '../iam/auth/guards/jwt-auth.guard';
+import { PoliciesGuard } from '../framework/guards/policies.guard';
 
 @Controller(['<%= name %>'])
+@UseGuards(JwtAuthGuard, PoliciesGuard)
 export class <%= singular(classify(name)) %>Controller {
   private readonly logger = new Logger(<%= singular(classify(name)) %>Controller.name);
 

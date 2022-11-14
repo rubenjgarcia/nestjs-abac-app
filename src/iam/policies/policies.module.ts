@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import { Policy, PolicySchema } from './policies.schema';
@@ -8,7 +7,6 @@ import { PolicyService } from './policies.service';
 
 import { FrameworkModule } from '../../framework/framework.module';
 import { CaslAbilityFactory } from '../../framework/factories/casl-ability.factory';
-import { PoliciesGuard } from '../../framework/guards/policies.guard';
 
 @Module({
   imports: [
@@ -16,10 +14,6 @@ import { PoliciesGuard } from '../../framework/guards/policies.guard';
     FrameworkModule,
   ],
   controllers: [PolicyController],
-  providers: [
-    PolicyService,
-    { provide: APP_GUARD, useClass: PoliciesGuard },
-    CaslAbilityFactory,
-  ],
+  providers: [PolicyService, CaslAbilityFactory],
 })
 export class PoliciesModule {}

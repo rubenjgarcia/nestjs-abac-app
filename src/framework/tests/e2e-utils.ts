@@ -7,7 +7,7 @@ import { User } from '../../iam/users/users.schema';
 import { Policy } from '../../iam/policies/policies.schema';
 import { Unit } from '../../iam/units/units.schema';
 import { Organization } from '../../iam/organizations/organizations.schema';
-import { Role } from 'src/iam/roles/roles.schema';
+import { Role } from '../../iam/roles/roles.schema';
 
 export class E2EUtils {
   constructor(
@@ -31,6 +31,14 @@ export class E2EUtils {
     user: CreateUserDto,
     policies?: CreatePolicyDto | CreatePolicyDto[],
   ): Promise<User> {
+    return this.createUserWithProperties(user, policies);
+  }
+
+  async createUserWithProperties(
+    user: CreateUserDto,
+    policies?: CreatePolicyDto | CreatePolicyDto[],
+    properties?: Partial<User>,
+  ): Promise<User> {
     const unit = await this.getUnit();
     const hash = await this.createPasswordHash(user.password);
     if (policies !== undefined) {
@@ -42,6 +50,7 @@ export class E2EUtils {
       );
       return await new this.userModel({
         ...user,
+        ...(properties ? properties : {}),
         password: hash,
         policies: savedPolicies,
         unit,
@@ -58,6 +67,7 @@ export class E2EUtils {
       unit: user.unit._id.toString(),
       organization: user.unit.organization._id.toString(),
       roles: user.roles ? user.roles.map((r: Role) => r._id.toString()) : null,
+      twoFactorAuthentication: user.isTwoFactorAuthenticationEnabled || false,
     };
     return await this.jwtService.sign(payload);
   }

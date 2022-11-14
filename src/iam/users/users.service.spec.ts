@@ -1,9 +1,11 @@
 import * as bcrypt from 'bcrypt';
 import { Test } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { getModelToken } from '@nestjs/mongoose';
 import mongoose, { Connection, connect, Model, Types } from 'mongoose';
 import { accessibleRecordsPlugin } from '@casl/mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
+import { authenticator } from 'otplib';
 import { UserService } from './users.service';
 import { User, UserSchema } from './users.schema';
 import { Policy, PolicySchema } from '../policies/policies.schema';
@@ -19,6 +21,7 @@ import {
   UserScope,
   RemoveUser,
   AddGroupToUser,
+  Activate2FA,
 } from './users.actions';
 import { Group, GroupSchema } from '../groups/groups.schema';
 import { Unit, UnitSchema } from '../units/units.schema';
@@ -27,6 +30,7 @@ import {
   OrganizationSchema,
 } from '../organizations/organizations.schema';
 import { Role, RoleSchema } from '../roles/roles.schema';
+import { TwoFAService } from '../auth/2fa.service';
 
 describe('UserService', () => {
   let userService: UserService;
@@ -63,6 +67,7 @@ describe('UserService', () => {
       providers: [
         UserService,
         CaslAbilityFactory,
+        TwoFAService,
         { provide: getModelToken(User.name), useValue: userModel },
         {
           provide: getModelToken(Policy.name),
@@ -71,6 +76,12 @@ describe('UserService', () => {
         {
           provide: getModelToken(Group.name),
           useValue: groupModel,
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn().mockResolvedValue('foo'),
+          },
         },
       ],
     }).compile();
@@ -142,6 +153,7 @@ describe('UserService', () => {
       expect(responseUser._id).toBeDefined();
       expect(responseUser.email).toBe('foo@example.com');
       expect(responseUser.password).toBeUndefined();
+      expect(responseUser.twoFactorAuthenticationSecret).toBeUndefined();
     });
 
     it('should create an user and not return the password and return the policies', async () => {
@@ -168,6 +180,7 @@ describe('UserService', () => {
       expect(responseUser.email).toBe('foo@example.com');
       expect(responseUser.password).toBeUndefined();
       expect(responseUser.policies).toBeUndefined();
+      expect(responseUser.twoFactorAuthenticationSecret).toBeUndefined();
     });
 
     it('should fail to create an user if the email is not valid', async () => {
@@ -276,6 +289,7 @@ describe('UserService', () => {
       expect(responseUser._id).toBeDefined();
       expect(responseUser.email).toBe('foo@example.com');
       expect(responseUser.password).toBeUndefined();
+      expect(responseUser.twoFactorAuthenticationSecret).toBeUndefined();
 
       await expect(
         userService.create(
@@ -319,6 +333,7 @@ describe('UserService', () => {
       );
       expect(responseUser.email).toBe(user.email);
       expect(responseUser.password).toBeUndefined();
+      expect(responseUser.twoFactorAuthenticationSecret).toBeUndefined();
     });
 
     it('should return an user without password or policies', async () => {
@@ -341,6 +356,7 @@ describe('UserService', () => {
       expect(responseUser.email).toBe(user.email);
       expect(responseUser.password).toBeUndefined();
       expect(responseUser.policies).toBeUndefined();
+      expect(responseUser.twoFactorAuthenticationSecret).toBeUndefined();
     });
 
     it('should fail to get an user if the policies are incorrect', async () => {
@@ -417,6 +433,7 @@ describe('UserService', () => {
       expect(responseUser._id).toBeDefined();
       expect(responseUser.email).toBe('foo@example.com');
       expect(responseUser.password).toBeUndefined();
+      expect(responseUser.twoFactorAuthenticationSecret).toBeUndefined();
 
       await expect(
         userService.findOne(
@@ -524,6 +541,7 @@ describe('UserService', () => {
       const responseUser = await userService.findOneWithPolicies(user.email);
       expect(responseUser.email).toBe(user.email);
       expect(responseUser.password).toBeUndefined();
+      expect(responseUser.twoFactorAuthenticationSecret).toBeUndefined();
       expect(responseUser.unit).toBeDefined();
       expect(responseUser.unit._id).toStrictEqual(unit._id);
       expect(responseUser.unit.organization).toBeDefined();
@@ -556,6 +574,7 @@ describe('UserService', () => {
       const responseUser = await userService.findOneWithPolicies(user.email);
       expect(responseUser.email).toBe(user.email);
       expect(responseUser.password).toBeUndefined();
+      expect(responseUser.twoFactorAuthenticationSecret).toBeUndefined();
 
       expect(responseUser.policies.length).toBe(1);
       const responsePolicy = responseUser.policies[0];
@@ -593,6 +612,7 @@ describe('UserService', () => {
       const responseUser = await userService.findOneWithPolicies(user.email);
       expect(responseUser.email).toBe(user.email);
       expect(responseUser.password).toBeUndefined();
+      expect(responseUser.twoFactorAuthenticationSecret).toBeUndefined();
 
       expect(responseUser.policies.length).toBe(1);
       const responsePolicy = responseUser.policies[0];
@@ -638,8 +658,10 @@ describe('UserService', () => {
       expect(responseUsers.length).toBe(2);
       expect(responseUsers[0].password).toBeUndefined();
       expect(responseUsers[0].policies).toBeUndefined();
+      expect(responseUsers[0].twoFactorAuthenticationSecret).toBeUndefined();
       expect(responseUsers[1].password).toBeUndefined();
       expect(responseUsers[1].policies).toBeUndefined();
+      expect(responseUsers[1].twoFactorAuthenticationSecret).toBeUndefined();
     });
 
     it('should return an array of users based on condition', async () => {
@@ -664,6 +686,7 @@ describe('UserService', () => {
       expect(responseUsers.length).toBe(1);
       expect(responseUsers[0].password).toBeUndefined();
       expect(responseUsers[0].policies).toBeUndefined();
+      expect(responseUsers[0].twoFactorAuthenticationSecret).toBeUndefined();
 
       responseUsers = await userService.findAll(
         {
@@ -708,6 +731,7 @@ describe('UserService', () => {
       expect(responseUsers.length).toBe(1);
       expect(responseUsers[0].password).toBeUndefined();
       expect(responseUsers[0].policies).toBeUndefined();
+      expect(responseUsers[0].twoFactorAuthenticationSecret).toBeUndefined();
     });
 
     it('should fail to return an array of users if the policies are incorrect', async () => {
@@ -789,6 +813,7 @@ describe('UserService', () => {
       );
       expect(updatedUser.password).toBeUndefined();
       expect(updatedUser.policies).toBeUndefined();
+      expect(updatedUser.twoFactorAuthenticationSecret).toBeUndefined();
     });
 
     it('should update user without policies', async () => {
@@ -814,6 +839,7 @@ describe('UserService', () => {
       );
       expect(updatedUser.password).toBeUndefined();
       expect(updatedUser.policies).toBeUndefined();
+      expect(updatedUser.twoFactorAuthenticationSecret).toBeUndefined();
     });
 
     it('should fail to update an user if the policies are incorrect', async () => {
@@ -906,6 +932,7 @@ describe('UserService', () => {
       expect(responseUser._id).toBeDefined();
       expect(responseUser.email).toBe('foo@example.com');
       expect(responseUser.password).toBeUndefined();
+      expect(responseUser.twoFactorAuthenticationSecret).toBeUndefined();
 
       await expect(
         userService.update(
@@ -1166,6 +1193,99 @@ describe('UserService', () => {
           unit._id.toString(),
         ),
       ).rejects.toThrow(/.*Group not found.*/);
+    });
+  });
+
+  describe('generate2FA', () => {
+    it('should add a 2FA to an user', async () => {
+      await new userModel(user).save();
+      const otpauthUrl = await userService.generate2FA(
+        user._id.toString(),
+        {
+          policies: [
+            {
+              name: 'FooPolicy',
+              effect: Effect.Allow,
+              actions: [`${UserScope}:${Activate2FA}`],
+              resources: ['*'],
+            },
+          ],
+        },
+        unit._id.toString(),
+      );
+      expect(otpauthUrl).toBeDefined();
+
+      const savedUser = await userModel.findById(user._id);
+      expect(savedUser.twoFactorAuthenticationSecret).toBeDefined();
+    });
+  });
+
+  describe('validate2FA', () => {
+    it('should fail to validate 2FA if the user does not have it generated', async () => {
+      await new userModel(user).save();
+      await expect(
+        userService.validate2FA(
+          user._id.toString(),
+          {
+            policies: [
+              {
+                name: 'FooPolicy',
+                effect: Effect.Allow,
+                actions: [`${UserScope}:${Activate2FA}`],
+                resources: ['*'],
+              },
+            ],
+          },
+          unit._id.toString(),
+          '1234',
+        ),
+      ).rejects.toThrow('Not Found');
+    });
+
+    it('should fail to validate a 2FA if the code is invalid', async () => {
+      user.twoFactorAuthenticationSecret = 'ABCDEFGH';
+      await new userModel(user).save();
+      await expect(
+        userService.validate2FA(
+          user._id.toString(),
+          {
+            policies: [
+              {
+                name: 'FooPolicy',
+                effect: Effect.Allow,
+                actions: [`${UserScope}:${Activate2FA}`],
+                resources: ['*'],
+              },
+            ],
+          },
+          unit._id.toString(),
+          '123456123456',
+        ),
+      ).rejects.toThrow('Bad Request');
+    });
+
+    it('should validate a 2FA to an user', async () => {
+      const secret = 'ABCDEFGH';
+      user.twoFactorAuthenticationSecret = secret;
+      await new userModel(user).save();
+      await userService.validate2FA(
+        user._id.toString(),
+        {
+          policies: [
+            {
+              name: 'FooPolicy',
+              effect: Effect.Allow,
+              actions: [`${UserScope}:${Activate2FA}`],
+              resources: ['*'],
+            },
+          ],
+        },
+        unit._id.toString(),
+        authenticator.generate(secret),
+      );
+
+      const savedUser = await userModel.findById(user._id);
+      expect(savedUser.isTwoFactorAuthenticationEnabled).toBe(true);
     });
   });
 });

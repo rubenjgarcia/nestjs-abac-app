@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import { Group, GroupSchema } from './groups.schema';
@@ -8,7 +7,6 @@ import { GroupService } from './groups.service';
 
 import { FrameworkModule } from '../../framework/framework.module';
 import { CaslAbilityFactory } from '../../framework/factories/casl-ability.factory';
-import { PoliciesGuard } from '../../framework/guards/policies.guard';
 
 @Module({
   imports: [
@@ -16,11 +14,7 @@ import { PoliciesGuard } from '../../framework/guards/policies.guard';
     FrameworkModule,
   ],
   controllers: [GroupController],
-  providers: [
-    GroupService,
-    { provide: APP_GUARD, useClass: PoliciesGuard },
-    CaslAbilityFactory,
-  ],
+  providers: [GroupService, CaslAbilityFactory],
   exports: [MongooseModule],
 })
 export class GroupsModule {}

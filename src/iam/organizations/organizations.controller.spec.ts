@@ -3,7 +3,10 @@ import { Types } from 'mongoose';
 import * as mocks from 'node-mocks-http';
 import { OrganizationController } from './organizations.controller';
 import { OrganizationService } from './organizations.service';
-import { Effect } from '../../framework/factories/casl-ability.factory';
+import {
+  CaslAbilityFactory,
+  Effect,
+} from '../../framework/factories/casl-ability.factory';
 import {
   CreateOrganization,
   GetOrganization,
@@ -21,6 +24,7 @@ describe('OrganizationController', () => {
     const module = await Test.createTestingModule({
       controllers: [OrganizationController],
       providers: [
+        CaslAbilityFactory,
         {
           provide: OrganizationService,
           useValue: {

@@ -6,7 +6,10 @@ import { UserService } from './users.service';
 import { User } from './users.schema';
 import { CreateUserDto } from './dtos/create-user.dto';
 import { UpdateUserDto } from './dtos/update-user.dto';
-import { Effect } from '../../framework/factories/casl-ability.factory';
+import {
+  CaslAbilityFactory,
+  Effect,
+} from '../../framework/factories/casl-ability.factory';
 import {
   CreateUser,
   GetUser,
@@ -14,6 +17,7 @@ import {
   RemoveUser,
   UpdateUser,
   UserScope,
+  Activate2FA,
 } from './users.actions';
 
 describe('UserController', () => {
@@ -43,6 +47,7 @@ describe('UserController', () => {
     const module = await Test.createTestingModule({
       controllers: [UserController],
       providers: [
+        CaslAbilityFactory,
         {
           provide: UserService,
           useValue: {
@@ -66,6 +71,8 @@ describe('UserController', () => {
             create: jest.fn().mockResolvedValue(user),
             update: jest.fn().mockResolvedValue(user),
             remove: jest.fn(),
+            generate2FA: jest.fn(),
+            validate2FA: jest.fn(),
           },
         },
       ],
@@ -197,6 +204,47 @@ describe('UserController', () => {
     it('should remove an user', async () => {
       userController.remove('000000000000', request);
       expect(userService.remove).toHaveBeenCalled();
+    });
+  });
+
+  describe('generate2FA', () => {
+    const request = mocks.createRequest();
+    const response = mocks.createResponse();
+    request.user = {
+      policies: [
+        {
+          name: 'FooPolicy',
+          effect: Effect.Allow,
+          actions: [`${UserScope}:${Activate2FA}`],
+          resources: ['*'],
+        },
+      ],
+      unitId: '000000000000',
+    };
+
+    it('should generate 2FA to an user', async () => {
+      userController.generate2FA(request, response);
+      expect(userService.generate2FA).toHaveBeenCalled();
+    });
+  });
+
+  describe('validate2FA', () => {
+    const request = mocks.createRequest();
+    request.user = {
+      policies: [
+        {
+          name: 'FooPolicy',
+          effect: Effect.Allow,
+          actions: [`${UserScope}:${Activate2FA}`],
+          resources: ['*'],
+        },
+      ],
+      unitId: '000000000000',
+    };
+
+    it('should validate 2FA to an user', async () => {
+      userController.validate2FA({ token: '123456' }, request);
+      expect(userService.validate2FA).toHaveBeenCalled();
     });
   });
 });

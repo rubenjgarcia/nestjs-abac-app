@@ -5,7 +5,10 @@ import { GroupController } from './groups.controller';
 import { GroupService } from './groups.service';
 import { CreateGroupDto } from './dtos/create-group.dto';
 import { UpdateGroupDto } from './dtos/update-group.dto';
-import { Effect } from '../../framework/factories/casl-ability.factory';
+import {
+  CaslAbilityFactory,
+  Effect,
+} from '../../framework/factories/casl-ability.factory';
 import {
   CreateGroup,
   GetGroup,
@@ -26,6 +29,7 @@ describe('GroupController', () => {
     const module = await Test.createTestingModule({
       controllers: [GroupController],
       providers: [
+        CaslAbilityFactory,
         {
           provide: GroupService,
           useValue: {

@@ -7,12 +7,14 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule, JwtService } from '@nestjs/jwt';
+import { authenticator } from 'otplib';
 import { UsersModule } from './users.module';
 import { AuthModule } from '../auth/auth.module';
 import { E2EUtils } from '../../framework/tests/e2e-utils';
 import { Effect } from '../../framework/factories/casl-ability.factory';
 import {
   CreateUser,
+  Activate2FA,
   GetUser,
   ListUsers,
   RemoveUser,
@@ -1122,6 +1124,162 @@ describe('Users e2e', () => {
           .delete(`/iam/users/${userResponse._id}`)
           .set('Authorization', 'bearer ' + accessToken)
           .expect(200);
+      });
+    });
+
+    describe('POST /iam/users/2FA/generate', () => {
+      it("should fail to genereate 2FA if user it's not logged in", async () => {
+        await request(app.getHttpServer())
+          .post('/iam/users/2FA/generate')
+          .expect(401);
+      });
+
+      it('should fail to genereate 2FA if user has no policies', async () => {
+        const accessToken = await e2eUtils.createUserAndLogin({
+          email: 'foo@example.com',
+          password: 'bar',
+        });
+        await request(app.getHttpServer())
+          .post('/iam/users/2FA/generate')
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(403);
+      });
+
+      it('should generate 2FA if user has wildcard resource in policy', async () => {
+        const accessToken = await e2eUtils.createUserAndLogin(
+          {
+            email: 'foo@example.com',
+            password: 'bar',
+          },
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: [`${UserScope}:${Activate2FA}`],
+            resources: ['*'],
+          },
+        );
+        await request(app.getHttpServer())
+          .post('/iam/users/2FA/generate')
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(200);
+      });
+    });
+
+    describe('POST /iam/users/2FA/validate', () => {
+      it("should fail to validate 2FA if user it's not logged in", async () => {
+        await request(app.getHttpServer())
+          .post('/iam/users/2FA/validate')
+          .expect(401);
+      });
+
+      it('should fail to genereate 2FA if user has no policies', async () => {
+        const accessToken = await e2eUtils.createUserAndLogin({
+          email: 'foo@example.com',
+          password: 'bar',
+        });
+        await request(app.getHttpServer())
+          .post('/iam/users/2FA/validate')
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(403);
+      });
+
+      it('should fail to validate 2FA if user has no 2FA secret', async () => {
+        const accessToken = await e2eUtils.createUserAndLogin(
+          {
+            email: 'foo@example.com',
+            password: 'bar',
+          },
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: [`${UserScope}:${Activate2FA}`],
+            resources: ['*'],
+          },
+        );
+        await request(app.getHttpServer())
+          .post('/iam/users/2FA/validate')
+          .send({ token: '123456' })
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(404);
+      });
+
+      it('should validate 2FA if user has wildcard resource in policy', async () => {
+        const secret = 'ABCDEFGH';
+        const user = await e2eUtils.createUserWithProperties(
+          {
+            email: 'foo@example.com',
+            password: 'bar',
+          },
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: [`${UserScope}:${Activate2FA}`],
+            resources: ['*'],
+          },
+          { twoFactorAuthenticationSecret: secret },
+        );
+        const accessToken = await e2eUtils.login(user);
+        await request(app.getHttpServer())
+          .post('/iam/users/2FA/validate')
+          .send({ token: authenticator.generate(secret) })
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(200);
+      });
+
+      it('should fail to validate 2FA if token is not valid', async () => {
+        const user = await e2eUtils.createUserWithProperties(
+          {
+            email: 'foo@example.com',
+            password: 'bar',
+          },
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: [`${UserScope}:${Activate2FA}`],
+            resources: ['*'],
+          },
+          { twoFactorAuthenticationSecret: 'ABCDEFGH' },
+        );
+        const accessToken = await e2eUtils.login(user);
+        await request(app.getHttpServer())
+          .post('/iam/users/2FA/validate')
+          .send({ token: 'AAAAAA' })
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(400);
+      });
+
+      it('should fail to validate 2FA if token has not valid length', async () => {
+        const user = await e2eUtils.createUserWithProperties(
+          {
+            email: 'foo@example.com',
+            password: 'bar',
+          },
+          {
+            name: 'FooPolicy',
+            effect: Effect.Allow,
+            actions: [`${UserScope}:${Activate2FA}`],
+            resources: ['*'],
+          },
+          { twoFactorAuthenticationSecret: 'ABCDEFGH' },
+        );
+        const accessToken = await e2eUtils.login(user);
+        await request(app.getHttpServer())
+          .post('/iam/users/2FA/validate')
+          .send({ token: '' })
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(400);
+
+        await request(app.getHttpServer())
+          .post('/iam/users/2FA/validate')
+          .send({ token: '1' })
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(400);
+
+        await request(app.getHttpServer())
+          .post('/iam/users/2FA/validate')
+          .send({ token: '1234567' })
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(400);
       });
     });
   });

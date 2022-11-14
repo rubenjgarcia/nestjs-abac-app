@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import { Role, RoleSchema } from './roles.schema';
@@ -8,7 +7,6 @@ import { RoleService } from './roles.service';
 
 import { FrameworkModule } from '../../framework/framework.module';
 import { CaslAbilityFactory } from '../../framework/factories/casl-ability.factory';
-import { PoliciesGuard } from '../../framework/guards/policies.guard';
 import { UsersModule } from '../users/users.module';
 
 @Module({
@@ -18,10 +16,6 @@ import { UsersModule } from '../users/users.module';
     UsersModule,
   ],
   controllers: [RoleController],
-  providers: [
-    CaslAbilityFactory,
-    RoleService,
-    { provide: APP_GUARD, useClass: PoliciesGuard },
-  ],
+  providers: [CaslAbilityFactory, RoleService],
 })
 export class RolesModule {}
