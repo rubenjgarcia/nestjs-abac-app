@@ -70,9 +70,6 @@ export class UserService extends CrudService<UserDocument> {
   ): Promise<UserDocument> {
     return await super.findOne(id, withPolicies, unitId, {
       password: false,
-      policies: false,
-      groups: false,
-      roles: false,
       twoFactorAuthenticationSecret: false,
     });
   }
@@ -85,9 +82,6 @@ export class UserService extends CrudService<UserDocument> {
   ): Promise<UserDocument> {
     return await super.update(id, updateUserDto, withPolicies, unitId, {
       password: false,
-      policies: false,
-      groups: false,
-      roles: false,
       twoFactorAuthenticationSecret: false,
     });
   }

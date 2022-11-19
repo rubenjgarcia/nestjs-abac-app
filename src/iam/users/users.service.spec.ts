@@ -336,7 +336,7 @@ describe('UserService', () => {
       expect(responseUser.twoFactorAuthenticationSecret).toBeUndefined();
     });
 
-    it('should return an user without password or policies', async () => {
+    it('should return an user without password', async () => {
       const savedPolicy = await new policyModel(policy).save();
       await new userModel({ ...user, policies: [savedPolicy] }).save();
       const responseUser = await userService.findOne(
@@ -355,7 +355,6 @@ describe('UserService', () => {
       );
       expect(responseUser.email).toBe(user.email);
       expect(responseUser.password).toBeUndefined();
-      expect(responseUser.policies).toBeUndefined();
       expect(responseUser.twoFactorAuthenticationSecret).toBeUndefined();
     });
 
@@ -812,7 +811,6 @@ describe('UserService', () => {
         unit._id.toString(),
       );
       expect(updatedUser.password).toBeUndefined();
-      expect(updatedUser.policies).toBeUndefined();
       expect(updatedUser.twoFactorAuthenticationSecret).toBeUndefined();
     });
 
@@ -838,7 +836,6 @@ describe('UserService', () => {
         unit._id.toString(),
       );
       expect(updatedUser.password).toBeUndefined();
-      expect(updatedUser.policies).toBeUndefined();
       expect(updatedUser.twoFactorAuthenticationSecret).toBeUndefined();
     });
 

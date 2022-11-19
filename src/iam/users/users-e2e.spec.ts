@@ -241,7 +241,6 @@ describe('Users e2e', () => {
           .expect(200);
         expect(response.body.email).toBe('bar@example.com');
         expect(response.body.password).toBeUndefined();
-        expect(response.body.policies).toBeUndefined();
       });
 
       it('should fail to get user if user has deny effect and wildcard resource in policy', async () => {
@@ -294,7 +293,6 @@ describe('Users e2e', () => {
           .expect(200);
         expect(response.body.email).toBe('bar@example.com');
         expect(response.body.password).toBeUndefined();
-        expect(response.body.policies).toBeUndefined();
       });
 
       it('should fail to get user if user has deny effect and no wildcard resource in policy', async () => {
@@ -445,7 +443,6 @@ describe('Users e2e', () => {
           .expect(200);
         expect(response.body.email).toBe('bar@example.com');
         expect(response.body.password).toBeUndefined();
-        expect(response.body.policies).toBeUndefined();
       });
     });
 
@@ -665,7 +662,6 @@ describe('Users e2e', () => {
           .expect(200);
         expect(response.body.email).toBe('bar@example.com');
         expect(response.body.password).toBeUndefined();
-        expect(response.body.policies).toBeUndefined();
       });
 
       it('should fail to update user if user has deny effect and wildcard resource in policy', async () => {
@@ -720,7 +716,6 @@ describe('Users e2e', () => {
           .expect(200);
         expect(response.body.email).toBe('bar@example.com');
         expect(response.body.password).toBeUndefined();
-        expect(response.body.policies).toBeUndefined();
       });
 
       it('should fail to update user if user has deny effect and no wildcard resource in policy', async () => {
@@ -875,7 +870,6 @@ describe('Users e2e', () => {
           .expect(200);
         expect(response.body.email).toBe('bar@example.com');
         expect(response.body.password).toBeUndefined();
-        expect(response.body.policies).toBeUndefined();
       });
     });
 
