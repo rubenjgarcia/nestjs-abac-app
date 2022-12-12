@@ -7,7 +7,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule, JwtService } from '@nestjs/jwt';
-import { UnitsModule } from '../units/units.module';
+import { UnitsModule } from './units.module';
 import { AuthModule } from '../auth/auth.module';
 import { E2EUtils } from '../../framework/tests/e2e-utils';
 import { Effect } from '../../framework/factories/casl-ability.factory';
@@ -19,8 +19,8 @@ import {
   RemoveUnit,
   UpdateUnit,
   CreateChildUnit,
-} from '../units/units.actions';
-import { Unit, UnitSchema } from '../units/units.schema';
+} from './units.actions';
+import { Unit, UnitSchema } from './units.schema';
 import { CreateUnitDto } from './dtos/create-unit.dto';
 import { UpdateUnitDto } from './dtos/update-unit.dto';
 import { Policy, PolicySchema } from '../policies/policies.schema';
