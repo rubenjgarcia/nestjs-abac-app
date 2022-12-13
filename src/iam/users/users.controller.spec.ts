@@ -71,7 +71,7 @@ describe('UserController', () => {
             create: jest.fn().mockResolvedValue(user),
             update: jest.fn().mockResolvedValue(user),
             remove: jest.fn(),
-            generate2FA: jest.fn(),
+            generate2FA: jest.fn().mockResolvedValue('http://foo.bar'),
             validate2FA: jest.fn(),
           },
         },
@@ -223,7 +223,7 @@ describe('UserController', () => {
     };
 
     it('should generate 2FA to an user', async () => {
-      userController.generate2FA(request, response);
+      await userController.generate2FA(request, response);
       expect(userService.generate2FA).toHaveBeenCalled();
     });
   });
