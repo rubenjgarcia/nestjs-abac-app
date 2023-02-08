@@ -5,6 +5,7 @@ import {
   Logger,
   Param,
   Post,
+  Put,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -14,6 +15,7 @@ import { AuthService } from './auth.service';
 import { Validate2FADto } from './dtos/validate-2fa';
 import Jwt2FAGuard from './guards/jwt-2fa-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { ChangePasswordDto } from './dtos/change-password';
 
 @Controller(['auth'])
 export class AuthController {
@@ -41,5 +43,18 @@ export class AuthController {
   @Post('assume/:roleId')
   async assume(@Param('roleId') roleId: string, @Req() req: any) {
     return this.authService.assume(req.user, roleId);
+  }
+
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @Put('password')
+  async changePassword(
+    @Body() changePasswordDto: ChangePasswordDto,
+    @Req() req: any,
+  ) {
+    return this.authService.changePassword(
+      req.user,
+      changePasswordDto.password,
+    );
   }
 }

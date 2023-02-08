@@ -88,4 +88,8 @@ export class AuthService {
       access_token: this.jwtService.sign(payload),
     };
   }
+
+  async changePassword(user: any, newPassword: string): Promise<void> {
+    return await this.usersService.changePassword(user.email, newPassword);
+  }
 }

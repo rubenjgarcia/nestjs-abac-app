@@ -1285,4 +1285,22 @@ describe('UserService', () => {
       expect(savedUser.isTwoFactorAuthenticationEnabled).toBe(true);
     });
   });
+
+  describe('changePassword', () => {
+    it('should fail to change password if user is not in database', async () => {
+      await expect(
+        userService.changePassword('foo@bar.com', 'Foo'),
+      ).rejects.toThrow(/No document found for query.*/);
+
+      await new userModel(user).save();
+      await expect(
+        userService.changePassword('xxx' + user.email, 'Foo'),
+      ).rejects.toThrow(/No document found for query.*/);
+    });
+
+    it('should change password to user', async () => {
+      await new userModel(user).save();
+      await userService.changePassword(user.email, 'Foo');
+    });
+  });
 });

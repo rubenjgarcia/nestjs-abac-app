@@ -204,4 +204,16 @@ export class UserService extends CrudService<UserDocument> {
       )
       .orFail();
   }
+
+  async changePassword(email: string, newPassword: string): Promise<void> {
+    const hash = await bcrypt.hash(newPassword, 10);
+    await this.model
+      .findOneAndUpdate(
+        { email },
+        {
+          password: hash,
+        },
+      )
+      .orFail();
+  }
 }
