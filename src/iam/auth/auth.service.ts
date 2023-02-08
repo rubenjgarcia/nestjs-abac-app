@@ -89,7 +89,15 @@ export class AuthService {
     };
   }
 
-  async changePassword(user: any, newPassword: string): Promise<void> {
-    return await this.usersService.changePassword(user.email, newPassword);
+  async changePassword(
+    user: any,
+    oldPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    return await this.usersService.changePassword(
+      user.email,
+      oldPassword,
+      newPassword,
+    );
   }
 }

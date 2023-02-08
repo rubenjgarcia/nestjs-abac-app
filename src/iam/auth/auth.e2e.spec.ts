@@ -220,11 +220,11 @@ describe('Auth e2e', () => {
       it('should deny change password if the user is not logged in', async () => {
         await request(app.getHttpServer())
           .put('/auth/password')
-          .send({ password: 'foo' })
+          .send({ oldPassword: 'Foo', newPassword: 'Bar' })
           .expect(401);
       });
 
-      it('should raise an error if password is empty', async () => {
+      it('should raise an error if old password or new password are empty', async () => {
         const user = { email: 'foo@example.com', password: 'bar' };
         const responseUser = await e2eUtils.createUser(user);
         const accessToken = await e2eUtils.login(responseUser);
@@ -236,13 +236,37 @@ describe('Auth e2e', () => {
 
         await request(app.getHttpServer())
           .put('/auth/password')
-          .send({ password: '' })
+          .send({ oldPassword: '' })
           .set('Authorization', 'bearer ' + accessToken)
           .expect(400);
 
         await request(app.getHttpServer())
           .put('/auth/password')
-          .send({ password: 123 })
+          .send({ newPassword: '' })
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(400);
+
+        await request(app.getHttpServer())
+          .put('/auth/password')
+          .send({ oldPassword: '', newPassword: '' })
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(400);
+
+        await request(app.getHttpServer())
+          .put('/auth/password')
+          .send({ oldPassword: 'Foo', newPassword: '' })
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(400);
+
+        await request(app.getHttpServer())
+          .put('/auth/password')
+          .send({ oldPassword: '', newPassword: 'Foo' })
+          .set('Authorization', 'bearer ' + accessToken)
+          .expect(400);
+
+        await request(app.getHttpServer())
+          .put('/auth/password')
+          .send({ oldPassword: 123, newPassword: 456 })
           .set('Authorization', 'bearer ' + accessToken)
           .expect(400);
       });
@@ -253,7 +277,7 @@ describe('Auth e2e', () => {
         const accessToken = await e2eUtils.login(responseUser);
         await request(app.getHttpServer())
           .put('/auth/password')
-          .send({ password: 'Foo' })
+          .send({ oldPassword: 'bar', newPassword: 'foo' })
           .set('Authorization', 'bearer ' + accessToken)
           .expect(200);
       });

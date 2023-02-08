@@ -205,15 +205,29 @@ export class UserService extends CrudService<UserDocument> {
       .orFail();
   }
 
-  async changePassword(email: string, newPassword: string): Promise<void> {
+  async changePassword(
+    email: string,
+    oldPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    const user = await this.model.findOne({ email });
+    if (!user) {
+      throw new BadRequestException('User does not exist');
+    }
+
+    if (user) {
+      const passwordMatch = await bcrypt.compare(oldPassword, user.password);
+      if (!passwordMatch) {
+        throw new BadRequestException('Old password is wrong');
+      }
+    }
+
     const hash = await bcrypt.hash(newPassword, 10);
-    await this.model
-      .findOneAndUpdate(
-        { email },
-        {
-          password: hash,
-        },
-      )
-      .orFail();
+    await this.model.findOneAndUpdate(
+      { email },
+      {
+        password: hash,
+      },
+    );
   }
 }

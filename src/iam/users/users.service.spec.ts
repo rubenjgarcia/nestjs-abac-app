@@ -1289,18 +1289,26 @@ describe('UserService', () => {
   describe('changePassword', () => {
     it('should fail to change password if user is not in database', async () => {
       await expect(
-        userService.changePassword('foo@bar.com', 'Foo'),
-      ).rejects.toThrow(/No document found for query.*/);
+        userService.changePassword('foo@bar.com', 'Foo', 'Bar'),
+      ).rejects.toThrow('User does not exist');
 
       await new userModel(user).save();
       await expect(
-        userService.changePassword('xxx' + user.email, 'Foo'),
-      ).rejects.toThrow(/No document found for query.*/);
+        userService.changePassword('xxx' + user.email, 'Foo', 'Bar'),
+      ).rejects.toThrow('User does not exist');
+    });
+
+    it('should fail to change password if the old password is wrong', async () => {
+      await new userModel(user).save();
+      await expect(
+        userService.changePassword(user.email, 'Foo', 'Bar'),
+      ).rejects.toThrow('Old password is wrong');
     });
 
     it('should change password to user', async () => {
-      await new userModel(user).save();
-      await userService.changePassword(user.email, 'Foo');
+      const hash = await bcrypt.hash(user.password, 10);
+      await new userModel({ ...user, password: hash }).save();
+      await userService.changePassword(user.email, 'bar', 'Foo');
     });
   });
 });

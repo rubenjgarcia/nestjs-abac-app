@@ -54,7 +54,8 @@ export class AuthController {
   ) {
     return this.authService.changePassword(
       req.user,
-      changePasswordDto.password,
+      changePasswordDto.oldPassword,
+      changePasswordDto.newPassword,
     );
   }
 }
