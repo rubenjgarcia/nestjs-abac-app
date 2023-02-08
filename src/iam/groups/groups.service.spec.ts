@@ -371,7 +371,7 @@ describe('GroupService', () => {
       expect(responseGroups.length).toBe(0);
     });
 
-    it('should fail to return an array of groups if the groups are incorrect', async () => {
+    it('should fail to return an array of groups if the policies are incorrect', async () => {
       await new groupModel(group).save();
       await new groupModel(group2).save();
 

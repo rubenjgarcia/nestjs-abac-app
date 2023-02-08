@@ -107,7 +107,7 @@ describe('OrganizationService', () => {
       expect(responseOrganization.name).toBe('Foo');
     });
 
-    it('should fail to create a organization if the organizations are incorrect', async () => {
+    it('should fail to create a organization if the policies are incorrect', async () => {
       await expect(
         organizationService.create(
           { name: 'FooOrganization' },
