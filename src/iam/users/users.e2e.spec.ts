@@ -28,6 +28,7 @@ import {
   Organization,
   OrganizationSchema,
 } from '../organizations/organizations.schema';
+import { FrameworkModule } from 'src/framework/framework.module';
 
 describe('Users e2e', () => {
   let app: INestApplication;
@@ -41,6 +42,7 @@ describe('Users e2e', () => {
       imports: [
         AuthModule,
         UsersModule,
+        FrameworkModule,
         ConfigModule.forRoot({ isGlobal: true }),
         MongooseModule.forRootAsync({
           imports: [

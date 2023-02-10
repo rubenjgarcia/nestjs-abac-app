@@ -31,9 +31,13 @@ import {
 } from '../organizations/organizations.schema';
 import { Role, RoleSchema } from '../roles/roles.schema';
 import { TwoFAService } from '../auth/2fa.service';
+import { EventsService } from 'src/framework/events/events';
+import { UserCreatedEvent } from './user.events';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 describe('UserService', () => {
   let userService: UserService;
+  let eventsService: EventsService;
   let mongod: MongoMemoryServer;
   let mongoConnection: Connection;
   let userModel: Model<User>;
@@ -48,6 +52,8 @@ describe('UserService', () => {
   let user: User;
   let userBar: User;
   let policy: Policy;
+
+  jest.mock('src/framework/events/events');
 
   beforeAll(async () => {
     mongoose.plugin(accessibleRecordsPlugin);
@@ -64,10 +70,12 @@ describe('UserService', () => {
     );
     roleModel = mongoConnection.model(Role.name, RoleSchema);
     const module = await Test.createTestingModule({
+      imports: [EventEmitterModule.forRoot()],
       providers: [
         UserService,
         CaslAbilityFactory,
         TwoFAService,
+        EventsService,
         { provide: getModelToken(User.name), useValue: userModel },
         {
           provide: getModelToken(Policy.name),
@@ -87,6 +95,7 @@ describe('UserService', () => {
     }).compile();
 
     userService = module.get<UserService>(UserService);
+    eventsService = module.get<EventsService>(EventsService);
   });
 
   afterAll(async () => {
@@ -311,6 +320,28 @@ describe('UserService', () => {
           unit._id.toString(),
         ),
       ).rejects.toThrow(`Cannot execute "${CreateUser}" on "${UserScope}"`);
+    });
+
+    it('should emit create user event', async () => {
+      const emitSpy = jest.spyOn(eventsService, 'emit');
+      const responseUser = await userService.create(
+        {
+          email: 'foo@example.com',
+          password: 'bar',
+        },
+        {
+          policies: [
+            {
+              name: 'FooPolicy',
+              effect: Effect.Allow,
+              actions: [`${UserScope}:${CreateUser}`],
+              resources: ['*'],
+            },
+          ],
+        },
+        unit._id.toString(),
+      );
+      expect(emitSpy).toBeCalledWith(new UserCreatedEvent(responseUser));
     });
   });
 

@@ -16,6 +16,8 @@ import { UpdateUserDto } from './dtos/update-user.dto';
 import { AddGroupToUser, Activate2FA, UserCrudActions } from './users.actions';
 import { Group, GroupDocument } from '../groups/groups.schema';
 import { TwoFAService } from '../auth/2fa.service';
+import { EventsService } from 'src/framework/events/events';
+import { UserCreatedEvent } from './user.events';
 
 @Injectable()
 export class UserService extends CrudService<UserDocument> {
@@ -26,6 +28,7 @@ export class UserService extends CrudService<UserDocument> {
     private readonly groupModel: AccessibleRecordModel<GroupDocument>,
     private readonly config: ConfigService,
     private readonly twoFAService: TwoFAService,
+    private readonly eventsService: EventsService,
   ) {
     super(userModel, new UserCrudActions());
   }
@@ -47,6 +50,7 @@ export class UserService extends CrudService<UserDocument> {
     );
     userResponse.password = undefined;
     userResponse.policies = undefined;
+    await this.eventsService.emit(new UserCreatedEvent(userResponse));
     return userResponse;
   }
 

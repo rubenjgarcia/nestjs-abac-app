@@ -204,7 +204,7 @@ describe('UnitService', () => {
       expect(responseUnit.ancestors[0]._id).toStrictEqual(parentUnit._id);
     });
 
-    it('should create a unit with a parent unit thas has another parent unit', async () => {
+    it('should create a unit with a parent unit that has another parent unit', async () => {
       const grandparentUnit = await new unitModel(unit).save();
       const parentUnit = await new unitModel({
         name: 'ParenUnit',

@@ -85,6 +85,12 @@ Every entity of the application needs to belong to a `unit`. For example, `users
 
 When you do a query with an `user` you can only see entities that belongs to the `unit` of that `user`
 
+## Events
+
+You can use events to implement the observer pattern in the application. For example, when a new user is created you may want to send an email. injecting the `EventsService` class in your service you can fire events
+
+You can see more about this in the [NestJS documentation](https://docs.nestjs.com/techniques/events)
+
 ## Two Factor Authentication
 
 To enable 2FA the user must have `User:Activate2FA` policy
