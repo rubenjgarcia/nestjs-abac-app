@@ -129,27 +129,6 @@ describe('UnitController', () => {
     });
   });
 
-  describe('remove', () => {
-    it('should remove a unit', async () => {
-      const request = mocks.createRequest();
-      request.user = {
-        policies: [
-          {
-            name: 'FooPolicy',
-            effect: Effect.Allow,
-            actions: [`${UnitScope}:${RemoveUnit}`],
-            resources: ['*'],
-          },
-        ],
-      };
-      await unitController.remove('000000000000', request);
-      expect(unitService.remove).toHaveBeenCalledWith(
-        '000000000000',
-        request.user,
-      );
-    });
-  });
-
   describe('createChildUnit', () => {
     it('should create a child unit', async () => {
       const request = mocks.createRequest();

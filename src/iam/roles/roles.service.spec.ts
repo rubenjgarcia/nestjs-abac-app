@@ -499,7 +499,9 @@ describe('RoleService', () => {
       await expect(
         roleService.update(
           responseRole._id.toString(),
-          {},
+          {
+            name: 'Foo2',
+          },
           {
             policies: [
               {

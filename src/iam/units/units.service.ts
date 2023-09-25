@@ -12,7 +12,6 @@ import {
   CreateUnit,
   GetUnit,
   ListUnits,
-  RemoveUnit,
   UpdateUnit,
   UnitScope,
   CreateChildUnit,
@@ -98,15 +97,5 @@ export class UnitService {
       )
       .orFail()
       .select(select);
-  }
-
-  async remove(id: string, withPolicies: WithPolicies): Promise<void> {
-    const ability = this.caslAbilityFactory.createWithPolicies(withPolicies);
-    await this.model
-      .accessibleBy(ability, RemoveUnit)
-      .findOneAndDelete({
-        _id: new Types.ObjectId(id),
-      })
-      .orFail();
   }
 }

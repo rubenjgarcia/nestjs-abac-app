@@ -72,12 +72,6 @@ export class UnitController {
     return this.unitService.update(id, updateUnitDto, request.user);
   }
 
-  @Delete(':id')
-  @CheckPolicies(new RemoveUnitPolicyHandler('id'))
-  remove(@Param('id') id: string, @Req() request: Request) {
-    return this.unitService.remove(id, request.user);
-  }
-
   @Post('/child')
   @CheckPolicies(new CreateChildUnitPolicyHandler())
   async createChildUnit(

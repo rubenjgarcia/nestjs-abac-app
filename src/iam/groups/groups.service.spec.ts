@@ -588,7 +588,9 @@ describe('GroupService', () => {
       await expect(
         groupService.update(
           responseGroup._id.toString(),
-          {},
+          {
+            name: 'Foo2',
+          },
           {
             policies: [
               {
