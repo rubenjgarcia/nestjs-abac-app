@@ -12,7 +12,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { RoleService } from './roles.service';
-import { Role } from './roles.schema';
 import { CreateRoleDto } from './dtos/create-role.dto';
 import { UpdateRoleDto } from './dtos/update-role.dto';
 import {
@@ -27,6 +26,7 @@ import {
 import { CheckPolicies } from '../../framework/decorators/check-policies.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PoliciesGuard } from '../../framework/guards/policies.guard';
+import { RoleResponseDto } from './dtos/role-response.dto';
 
 @Controller(['iam/roles'])
 @UseGuards(JwtAuthGuard, PoliciesGuard)
@@ -40,7 +40,7 @@ export class RoleController {
   async create(
     @Body() createRoleDto: CreateRoleDto,
     @Req() request: any,
-  ): Promise<Role> {
+  ): Promise<RoleResponseDto> {
     return await this.roleService.create(
       createRoleDto,
       request.user,
@@ -50,13 +50,16 @@ export class RoleController {
 
   @Get()
   @CheckPolicies(new ListRolesPolicyHandler())
-  async findAll(@Req() request: any): Promise<Role[]> {
+  async findAll(@Req() request: any): Promise<RoleResponseDto[]> {
     return this.roleService.findAll(request.user, request.user.unitId);
   }
 
   @Get(':id')
   @CheckPolicies(new GetRolePolicyHandler('id'))
-  async findOne(@Param('id') id: string, @Req() request: any): Promise<Role> {
+  async findOne(
+    @Param('id') id: string,
+    @Req() request: any,
+  ): Promise<RoleResponseDto> {
     return this.roleService.findOne(id, request.user, request.user.unitId);
   }
 
@@ -66,7 +69,7 @@ export class RoleController {
     @Param('id') id: string,
     @Body() updateRoleDto: UpdateRoleDto,
     @Req() request: any,
-  ): Promise<Role> {
+  ): Promise<RoleResponseDto> {
     return this.roleService.update(
       id,
       updateRoleDto,

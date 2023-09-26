@@ -1,11 +1,11 @@
 import { IEvent } from 'src/framework/events/iEvent';
-import { UserDocument } from './users.schema';
+import { UserResponseDto } from './dtos/user-response.dto';
 
 export const UserEventsScope = 'user';
 
-export class UserCreatedEvent implements IEvent<UserDocument> {
+export class UserCreatedEvent implements IEvent<UserResponseDto> {
   readonly scope = UserEventsScope;
   readonly name = 'created';
 
-  constructor(readonly payload: UserDocument) {}
+  constructor(readonly payload: UserResponseDto) {}
 }

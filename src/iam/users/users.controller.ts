@@ -15,7 +15,6 @@ import {
 import { Response } from 'express';
 import { toFileStream } from 'qrcode';
 import { UserService } from './users.service';
-import { User } from './users.schema';
 import { CreateUserDto } from './dtos/create-user.dto';
 import { UpdateUserDto } from './dtos/update-user.dto';
 import { CheckPolicies } from '../../framework/decorators/check-policies.decorator';
@@ -31,6 +30,7 @@ import {
 import { Validate2FADto } from './dtos/validate-2fa';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PoliciesGuard } from '../../framework/guards/policies.guard';
+import { UserResponseDto } from './dtos/user-response.dto';
 
 @Controller(['iam/users'])
 @UseGuards(JwtAuthGuard, PoliciesGuard)
@@ -44,7 +44,7 @@ export class UserController {
   async create(
     @Body() createUserDto: CreateUserDto,
     @Req() request: any,
-  ): Promise<User> {
+  ): Promise<UserResponseDto> {
     return await this.userService.create(
       createUserDto,
       request.user,
@@ -54,13 +54,16 @@ export class UserController {
 
   @Get()
   @CheckPolicies(new ListUsersPolicyHandler())
-  async findAll(@Req() request: any): Promise<User[]> {
+  async findAll(@Req() request: any): Promise<UserResponseDto[]> {
     return this.userService.findAll(request.user, request.user.unitId);
   }
 
   @Get(':id')
   @CheckPolicies(new GetUserPolicyHandler('id'))
-  async findOne(@Param('id') id: string, @Req() request: any): Promise<User> {
+  async findOne(
+    @Param('id') id: string,
+    @Req() request: any,
+  ): Promise<UserResponseDto> {
     return this.userService.findOne(id, request.user, request.user.unitId);
   }
 
@@ -70,7 +73,7 @@ export class UserController {
     @Param('id') id: string,
     @Body() updateUserDto: UpdateUserDto,
     @Req() request: any,
-  ): Promise<User> {
+  ): Promise<UserResponseDto> {
     return this.userService.update(
       id,
       updateUserDto,
@@ -91,7 +94,7 @@ export class UserController {
     @Param('id') id: string,
     @Param('groupId') groupId: string,
     @Req() request: any,
-  ): Promise<User> {
+  ): Promise<UserResponseDto> {
     return await this.userService.addGroupToUser(
       id,
       groupId,

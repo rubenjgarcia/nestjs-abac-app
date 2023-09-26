@@ -11,9 +11,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { <%= singular(classify(name)) %>Service } from './<%= name %>.service';
-import { <%= singular(classify(name)) %> } from './<%= name %>.schema';
-import { Create<%= singular(classify(name)) %>Dto } from './dtos/create-<%= singular(name) %>.dto';
-import { Update<%= singular(classify(name)) %>Dto } from './dtos/update-<%= singular(name) %>.dto';
+import { Create<%= singular(classify(name)) %>RequestDto } from './dtos/create-<%= singular(name) %>-request.dto';
+import { Update<%= singular(classify(name)) %>RequestDto } from './dtos/update-<%= singular(name) %>-request.dto';
+import { <%= singular(classify(name)) %>ResponseDto } from './dtos/<%= singular(name) %>-response.dto';
 import {
   Get<%= singular(classify(name)) %>PolicyHandler,
   Create<%= singular(classify(name)) %>PolicyHandler,
@@ -35,15 +35,15 @@ export class <%= singular(classify(name)) %>Controller {
   @Post()
   @CheckPolicies(new Create<%= singular(classify(name)) %>PolicyHandler())
   async create(
-    @Body() create<%= singular(classify(name)) %>Dto: Create<%= singular(classify(name)) %>Dto,
+    @Body() create<%= singular(classify(name)) %>Dto: Create<%= singular(classify(name)) %>RequestDto,
     @Req() request: any,
-  ): Promise<<%= singular(classify(name)) %>> {
+  ): Promise<<%= singular(classify(name)) %>ResponseDto> {
     return await this.<%= singular(name) %>Service.create(create<%= singular(classify(name)) %>Dto, request.user, request.user.unitId);
   }
 
   @Get()
   @CheckPolicies(new List<%= classify(name) %>PolicyHandler())
-  async findAll(@Req() request: any): Promise<<%= singular(classify(name)) %>[]> {
+  async findAll(@Req() request: any): Promise<<%= singular(classify(name)) %>ResponseDto[]> {
     return this.<%= singular(name) %>Service.findAll(request.user, request.user.unitId);
   }
 
@@ -52,7 +52,7 @@ export class <%= singular(classify(name)) %>Controller {
   async findOne(
     @Param('id') id: string,
     @Req() request: any,
-  ): Promise<<%= singular(classify(name)) %>> {
+  ): Promise<<%= singular(classify(name)) %>ResponseDto> {
     return this.<%= singular(name) %>Service.findOne(id, request.user, request.user.unitId);
   }
 
@@ -60,9 +60,9 @@ export class <%= singular(classify(name)) %>Controller {
   @CheckPolicies(new Update<%= singular(classify(name)) %>PolicyHandler('id'))
   async update(
     @Param('id') id: string,
-    @Body() update<%= singular(classify(name)) %>Dto: Update<%= singular(classify(name)) %>Dto,
+    @Body() update<%= singular(classify(name)) %>Dto: Update<%= singular(classify(name)) %>RequestDto,
     @Req() request: any,
-  ): Promise<<%= singular(classify(name)) %>> {
+  ): Promise<<%= singular(classify(name)) %>ResponseDto> {
     return this.<%= singular(name) %>Service.update(id, update<%= singular(classify(name)) %>Dto, request.user, request.user.unitId);
   }
 

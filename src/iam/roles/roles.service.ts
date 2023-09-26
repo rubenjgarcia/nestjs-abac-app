@@ -11,9 +11,10 @@ import {
 import { CrudService } from '../../framework/crud.service';
 import { WithPolicies } from '../../framework/factories/casl-ability.factory';
 import { User, UserDocument } from '../users/users.schema';
+import { RoleResponseDto } from './dtos/role-response.dto';
 
 @Injectable()
-export class RoleService extends CrudService<RoleDocument> {
+export class RoleService extends CrudService<RoleDocument, RoleResponseDto> {
   constructor(
     @InjectModel(Role.name)
     model: AccessibleRecordModel<RoleDocument>,

@@ -4,9 +4,10 @@ import { GroupCrudActions } from './groups.actions';
 import { AccessibleRecordModel } from '@casl/mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import { CrudService } from '../../framework/crud.service';
+import { GroupResponseDto } from './dtos/group-response.dto';
 
 @Injectable()
-export class GroupService extends CrudService<GroupDocument> {
+export class GroupService extends CrudService<GroupDocument, GroupResponseDto> {
   constructor(
     @InjectModel(Group.name)
     model: AccessibleRecordModel<GroupDocument>,

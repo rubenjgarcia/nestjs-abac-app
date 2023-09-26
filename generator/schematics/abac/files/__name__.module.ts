@@ -4,6 +4,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { <%= singular(classify(name)) %>, <%= singular(classify(name)) %>Schema } from './<%= name %>.schema';
 import { <%= singular(classify(name)) %>Controller } from './<%= name %>.controller';
 import { <%= singular(classify(name)) %>Service } from './<%= name %>.service';
+import { <%= singular(classify(name)) %>Profile } from './<%= name %>.profile';
 
 import { FrameworkModule } from '../framework/framework.module';
 import { CaslAbilityFactory } from '../framework/factories/casl-ability.factory';
@@ -19,6 +20,7 @@ import { CaslAbilityFactory } from '../framework/factories/casl-ability.factory'
   providers: [
     CaslAbilityFactory,
     <%= singular(classify(name)) %>Service,
+    <%= singular(classify(name)) %>Profile,
   ],
 })
 export class <%= classify(name) %>Module {}

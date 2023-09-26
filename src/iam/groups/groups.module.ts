@@ -7,6 +7,7 @@ import { GroupService } from './groups.service';
 
 import { FrameworkModule } from '../../framework/framework.module';
 import { CaslAbilityFactory } from '../../framework/factories/casl-ability.factory';
+import { GroupProfile } from './groups.profile';
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { CaslAbilityFactory } from '../../framework/factories/casl-ability.facto
     FrameworkModule,
   ],
   controllers: [GroupController],
-  providers: [GroupService, CaslAbilityFactory],
-  exports: [MongooseModule],
+  providers: [GroupService, CaslAbilityFactory, GroupProfile],
+  exports: [MongooseModule, GroupProfile],
 })
 export class GroupsModule {}

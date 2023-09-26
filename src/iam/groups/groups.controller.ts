@@ -11,7 +11,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { GroupService } from './groups.service';
-import { Group } from './groups.schema';
 import { CreateGroupDto } from './dtos/create-group.dto';
 import { UpdateGroupDto } from './dtos/update-group.dto';
 import {
@@ -24,6 +23,7 @@ import {
 import { CheckPolicies } from '../../framework/decorators/check-policies.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PoliciesGuard } from '../../framework/guards/policies.guard';
+import { GroupResponseDto } from './dtos/group-response.dto';
 
 @Controller(['iam/groups'])
 @UseGuards(JwtAuthGuard, PoliciesGuard)
@@ -37,7 +37,7 @@ export class GroupController {
   async create(
     @Body() createGroupDto: CreateGroupDto,
     @Req() request: any,
-  ): Promise<Group> {
+  ): Promise<GroupResponseDto> {
     return await this.groupService.create(
       createGroupDto,
       request.user,
@@ -47,13 +47,16 @@ export class GroupController {
 
   @Get()
   @CheckPolicies(new ListGroupsPolicyHandler())
-  async findAll(@Req() request: any): Promise<Group[]> {
+  async findAll(@Req() request: any): Promise<GroupResponseDto[]> {
     return this.groupService.findAll(request.user, request.user.unitId);
   }
 
   @Get(':id')
   @CheckPolicies(new GetGroupPolicyHandler('id'))
-  async findOne(@Param('id') id: string, @Req() request: any): Promise<Group> {
+  async findOne(
+    @Param('id') id: string,
+    @Req() request: any,
+  ): Promise<GroupResponseDto> {
     return this.groupService.findOne(id, request.user, request.user.unitId);
   }
 
@@ -63,7 +66,7 @@ export class GroupController {
     @Param('id') id: string,
     @Body() updateGroupDto: UpdateGroupDto,
     @Req() request: any,
-  ): Promise<Group> {
+  ): Promise<GroupResponseDto> {
     return this.groupService.update(
       id,
       updateGroupDto,

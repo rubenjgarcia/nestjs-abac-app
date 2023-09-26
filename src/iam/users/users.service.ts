@@ -18,9 +18,10 @@ import { Group, GroupDocument } from '../groups/groups.schema';
 import { TwoFAService } from '../auth/2fa.service';
 import { EventsService } from 'src/framework/events/events';
 import { UserCreatedEvent } from './user.events';
+import { UserResponseDto } from './dtos/user-response.dto';
 
 @Injectable()
-export class UserService extends CrudService<UserDocument> {
+export class UserService extends CrudService<UserDocument, UserResponseDto> {
   constructor(
     @InjectModel(User.name)
     userModel: AccessibleRecordModel<UserDocument>,
@@ -37,7 +38,7 @@ export class UserService extends CrudService<UserDocument> {
     createUserDto: CreateUserDto,
     withPolicies: WithPolicies,
     unitId: string,
-  ): Promise<UserDocument> {
+  ): Promise<UserResponseDto> {
     const hash = await bcrypt.hash(createUserDto.password, 10);
     const userResponse = await super.create(
       {
@@ -48,8 +49,9 @@ export class UserService extends CrudService<UserDocument> {
       withPolicies,
       unitId,
     );
-    userResponse.password = undefined;
-    userResponse.policies = undefined;
+    // FIXME
+    // userResponse.password = undefined;
+    // userResponse.policies = undefined;
     await this.eventsService.emit(new UserCreatedEvent(userResponse));
     return userResponse;
   }
@@ -57,7 +59,7 @@ export class UserService extends CrudService<UserDocument> {
   async findAll(
     withPolicies: WithPolicies,
     unitId: string,
-  ): Promise<UserDocument[]> {
+  ): Promise<UserResponseDto[]> {
     return await super.findAll(withPolicies, unitId, {
       password: false,
       policies: false,
@@ -71,7 +73,7 @@ export class UserService extends CrudService<UserDocument> {
     id: string,
     withPolicies: WithPolicies,
     unitId: string,
-  ): Promise<UserDocument> {
+  ): Promise<UserResponseDto> {
     return await super.findOne(id, withPolicies, unitId, {
       password: false,
       twoFactorAuthenticationSecret: false,
@@ -83,7 +85,7 @@ export class UserService extends CrudService<UserDocument> {
     updateUserDto: UpdateUserDto,
     withPolicies: WithPolicies,
     unitId: string,
-  ): Promise<UserDocument> {
+  ): Promise<UserResponseDto> {
     return await super.update(id, updateUserDto, withPolicies, unitId, {
       password: false,
       twoFactorAuthenticationSecret: false,
@@ -130,7 +132,7 @@ export class UserService extends CrudService<UserDocument> {
     groupId: string,
     withPolicies: WithPolicies,
     unitId: string,
-  ): Promise<UserDocument> {
+  ): Promise<UserResponseDto> {
     const group = await this.groupModel
       .findOne({
         _id: new Types.ObjectId(groupId),

@@ -6,14 +6,21 @@ import {
   CaslAbilityFactory,
   WithPolicies,
 } from './factories/casl-ability.factory';
-import { CreateDto, UpdateDto } from './dtos';
+import { CreateDto, ResponseDto, UpdateDto } from './dtos';
 import { CrudActions } from './actions';
 import { Entity } from './entity';
+import { Mapper } from '@automapper/core';
 
 @Injectable()
-export abstract class CrudService<T extends Document & Entity> {
+export abstract class CrudService<
+  T extends Document & Entity,
+  R extends ResponseDto,
+> {
   @Inject()
   readonly caslAbilityFactory: CaslAbilityFactory;
+
+  @Inject()
+  readonly mapper: Mapper;
 
   constructor(
     readonly model: AccessibleRecordModel<T>,
@@ -24,7 +31,7 @@ export abstract class CrudService<T extends Document & Entity> {
     createDto: CreateDto,
     withPolicies: WithPolicies,
     unitId: string,
-  ): Promise<T> {
+  ): Promise<R> {
     const ability = this.caslAbilityFactory.createWithPolicies(withPolicies);
     ForbiddenError.from(ability).throwUnlessCan(
       this.crudActions.createAction,
@@ -32,22 +39,24 @@ export abstract class CrudService<T extends Document & Entity> {
         ...createDto,
       }),
     );
-    return await this.model.create({
+    const response = await this.model.create({
       ...createDto,
       unit: new Types.ObjectId(unitId),
     });
+    return this.mapper.map(response, ResponseDto) as R;
   }
 
   async findAll(
     withPolicies: WithPolicies,
     unitId: string,
     select?: string | any,
-  ): Promise<T[]> {
+  ): Promise<R[]> {
     const ability = this.caslAbilityFactory.createWithPolicies(withPolicies);
-    return this.model
+    const response = await this.model
       .find({ unit: new Types.ObjectId(unitId) })
       .accessibleBy(ability, this.crudActions.listAction)
       .select(select);
+    return this.mapper.mapArray(response, ResponseDto) as R[];
   }
 
   async findOne(
@@ -55,9 +64,9 @@ export abstract class CrudService<T extends Document & Entity> {
     withPolicies: WithPolicies,
     unitId: string,
     select?: string | any,
-  ): Promise<T> {
+  ): Promise<R> {
     const ability = this.caslAbilityFactory.createWithPolicies(withPolicies);
-    return await this.model
+    const response = await this.model
       .accessibleBy(ability, this.crudActions.getAction)
       .findOne({
         _id: new Types.ObjectId(id),
@@ -65,6 +74,7 @@ export abstract class CrudService<T extends Document & Entity> {
       })
       .orFail()
       .select(select);
+    return this.mapper.map(response, ResponseDto) as R;
   }
 
   async update(
@@ -73,9 +83,9 @@ export abstract class CrudService<T extends Document & Entity> {
     withPolicies: WithPolicies,
     unitId: string,
     select?: string | any,
-  ): Promise<T> {
+  ): Promise<R> {
     const ability = this.caslAbilityFactory.createWithPolicies(withPolicies);
-    return await this.model
+    const response = await this.model
       .accessibleBy(ability, this.crudActions.updateAction)
       .findOneAndUpdate(
         { _id: new Types.ObjectId(id), unit: new Types.ObjectId(unitId) },
@@ -84,6 +94,7 @@ export abstract class CrudService<T extends Document & Entity> {
       )
       .orFail()
       .select(select);
+    return this.mapper.map(response, ResponseDto) as R;
   }
 
   async remove(

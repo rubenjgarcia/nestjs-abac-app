@@ -2,8 +2,8 @@ import { Test } from '@nestjs/testing';
 import * as mocks from 'node-mocks-http';
 import { <%= singular(classify(name)) %>Controller } from './<%= name %>.controller';
 import { <%= singular(classify(name)) %>Service } from './<%= name %>.service';
-import { Create<%= singular(classify(name)) %>Dto } from './dtos/create-<%= singular(name) %>.dto';
-import { Update<%= singular(classify(name)) %>Dto } from './dtos/update-<%= singular(name) %>.dto';
+import { Create<%= singular(classify(name)) %>RequestDto } from './dtos/create-<%= singular(name) %>-request.dto';
+import { Update<%= singular(classify(name)) %>RequestDto } from './dtos/update-<%= singular(name) %>-request.dto';
 import { Effect, CaslAbilityFactory, } from '../framework/factories/casl-ability.factory';
 import {
     Create<%= singular(classify(name)) %>,
@@ -18,8 +18,8 @@ describe('<%= singular(classify(name)) %>Controller', () => {
   let <%= singular(name) %>Controller: <%= singular(classify(name)) %>Controller;
   let <%= singular(name) %>Service: <%= singular(classify(name)) %>Service;
 
-  const create<%= singular(classify(name)) %>Dto: Create<%= singular(classify(name)) %>Dto = {};
-  const update<%= singular(classify(name)) %>Dto: Update<%= singular(classify(name)) %>Dto = {};
+  const create<%= singular(classify(name)) %>RequestDto: Create<%= singular(classify(name)) %>RequestDto = {};
+  const update<%= singular(classify(name)) %>RequestDto: Update<%= singular(classify(name)) %>RequestDto = {};
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({
@@ -57,9 +57,9 @@ describe('<%= singular(classify(name)) %>Controller', () => {
         ],
         unitId: '000000000000',
       };
-      await <%= singular(name) %>Controller.create(create<%= singular(classify(name)) %>Dto, request)
+      await <%= singular(name) %>Controller.create(create<%= singular(classify(name)) %>RequestDto, request)
       expect(<%= singular(name) %>Service.create).toHaveBeenCalledWith(
-        create<%= singular(classify(name)) %>Dto,
+        create<%= singular(classify(name)) %>RequestDto,
         request.user,
         '000000000000'
       );
@@ -118,10 +118,10 @@ describe('<%= singular(classify(name)) %>Controller', () => {
         ],
         unitId: '000000000000',
       };
-      await <%= singular(name) %>Controller.update('000000000000', update<%= singular(classify(name)) %>Dto, request)
+      await <%= singular(name) %>Controller.update('000000000000', update<%= singular(classify(name)) %>RequestDto, request)
       expect(<%= singular(name) %>Service.update).toHaveBeenCalledWith(
         '000000000000',
-        update<%= singular(classify(name)) %>Dto,
+        update<%= singular(classify(name)) %>RequestDto,
         request.user,
         '000000000000'
       );

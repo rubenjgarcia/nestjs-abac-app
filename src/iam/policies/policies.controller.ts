@@ -11,7 +11,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { PolicyService } from './policies.service';
-import { Policy } from './policies.schema';
 import { CreatePolicyDto } from './dtos/create-policy.dto';
 import { UpdatePolicyDto } from './dtos/update-policy.dto';
 import {
@@ -24,6 +23,7 @@ import {
 import { CheckPolicies } from '../../framework/decorators/check-policies.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PoliciesGuard } from '../../framework/guards/policies.guard';
+import { PolicyResponseDto } from './dtos/policy-response.dto';
 
 @Controller(['iam/policies'])
 @UseGuards(JwtAuthGuard, PoliciesGuard)
@@ -37,7 +37,7 @@ export class PolicyController {
   async create(
     @Body() createPolicyDto: CreatePolicyDto,
     @Req() request: any,
-  ): Promise<Policy> {
+  ): Promise<PolicyResponseDto> {
     return await this.policyService.create(
       createPolicyDto,
       request.user,
@@ -47,13 +47,16 @@ export class PolicyController {
 
   @Get()
   @CheckPolicies(new ListPoliciesPolicyHandler())
-  async findAll(@Req() request: any): Promise<Policy[]> {
+  async findAll(@Req() request: any): Promise<PolicyResponseDto[]> {
     return this.policyService.findAll(request.user, request.user.unitId);
   }
 
   @Get(':id')
   @CheckPolicies(new GetPolicyPolicyHandler('id'))
-  async findOne(@Param('id') id: string, @Req() request: any): Promise<Policy> {
+  async findOne(
+    @Param('id') id: string,
+    @Req() request: any,
+  ): Promise<PolicyResponseDto> {
     return this.policyService.findOne(id, request.user, request.user.unitId);
   }
 
@@ -63,7 +66,7 @@ export class PolicyController {
     @Param('id') id: string,
     @Body() updatePolicyDto: UpdatePolicyDto,
     @Req() request: any,
-  ): Promise<Policy> {
+  ): Promise<PolicyResponseDto> {
     return this.policyService.update(
       id,
       updatePolicyDto,
