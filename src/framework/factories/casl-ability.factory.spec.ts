@@ -354,7 +354,7 @@ describe('CASL Ability', () => {
     });
 
     it('should not have ability when the Allow policy has resource wildcard and Deny policy has resource informed and the resource _id is the same that the Deny policy has', () => {
-      const withPolicies: WithPolicies = {
+      let withPolicies: WithPolicies = {
         policies: [
           {
             name: 'FooPolicy',
@@ -370,8 +370,27 @@ describe('CASL Ability', () => {
           },
         ],
       };
-      const abilities = caslAbilityFactory.createWithPolicies(withPolicies);
+      let abilities = caslAbilityFactory.createWithPolicies(withPolicies);
       const foo: Foo = { _id: '000000000002' };
+      expect(abilities.can('Action', subject('Foo', foo))).toBe(false);
+
+      withPolicies = {
+        policies: [
+          {
+            name: 'DenyPolicy',
+            effect: Effect.Deny,
+            actions: ['Foo:Action'],
+            resources: ['*'],
+          },
+          {
+            name: 'AllowPolicy',
+            effect: Effect.Allow,
+            actions: ['*'],
+            resources: ['*'],
+          },
+        ],
+      };
+      abilities = caslAbilityFactory.createWithPolicies(withPolicies);
       expect(abilities.can('Action', subject('Foo', foo))).toBe(false);
     });
   });
