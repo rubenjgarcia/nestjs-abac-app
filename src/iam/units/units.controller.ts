@@ -1,7 +1,6 @@
 import {
   Body,
   Controller,
-  Delete,
   Get,
   Logger,
   Param,
@@ -20,7 +19,6 @@ import {
   CreateUnitPolicyHandler,
   ListUnitsPolicyHandler,
   UpdateUnitPolicyHandler,
-  RemoveUnitPolicyHandler,
   CreateChildUnitPolicyHandler,
 } from './units.handler';
 import { CheckPolicies } from '../../framework/decorators/check-policies.decorator';

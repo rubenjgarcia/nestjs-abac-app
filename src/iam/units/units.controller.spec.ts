@@ -13,7 +13,6 @@ import {
   GetUnit,
   ListUnits,
   UnitScope,
-  RemoveUnit,
   UpdateUnit,
   CreateChildUnit,
 } from './units.actions';
