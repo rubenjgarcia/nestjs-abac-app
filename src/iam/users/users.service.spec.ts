@@ -34,6 +34,7 @@ import { TwoFAService } from '../auth/2fa.service';
 import { EventsService } from 'src/framework/events/events';
 import { UserCreatedEvent } from './user.events';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { when } from 'jest-when';
 
 describe('UserService', () => {
   let userService: UserService;
@@ -69,6 +70,12 @@ describe('UserService', () => {
       OrganizationSchema,
     );
     roleModel = mongoConnection.model(Role.name, RoleSchema);
+
+    const getConfig = jest.fn();
+    when(getConfig)
+      .calledWith('RECOVERY_TOKEN_TIME', expect.any(Number))
+      .mockResolvedValue(24)
+      .defaultResolvedValue('FOO');
     const module = await Test.createTestingModule({
       imports: [EventEmitterModule.forRoot()],
       providers: [
@@ -88,7 +95,7 @@ describe('UserService', () => {
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn().mockResolvedValue('foo'),
+            get: getConfig,
           },
         },
       ],
@@ -1340,6 +1347,79 @@ describe('UserService', () => {
       const hash = await bcrypt.hash(user.password, 10);
       await new userModel({ ...user, password: hash }).save();
       await userService.changePassword(user.email, 'bar', 'Foo');
+    });
+  });
+
+  describe('findOneByEmail', () => {
+    it('should return an user without password', async () => {
+      await new userModel(user).save();
+      const responseUser = await userService.findOneByEmail(user.email);
+      expect(responseUser.email).toBe(user.email);
+      expect(responseUser.password).toBeUndefined();
+      expect(responseUser.twoFactorAuthenticationSecret).toBeUndefined();
+    });
+  });
+
+  describe('updateRecoveryToken', () => {
+    it('should put recovery token for an user', async () => {
+      await new userModel(user).save();
+      const token = 'foo';
+      await userService.updateRecoveryToken(user.email, token);
+      const response = await userModel.findById(user._id);
+      expect(response.recoveryToken).toBe(token);
+      expect(response.recoveryTokenExpiredAt).toBeDefined();
+    });
+
+    it('should fail if the user does not exists', async () => {
+      await new userModel(user).save();
+      await expect(
+        userService.updateRecoveryToken('foo', 'foo'),
+      ).rejects.toThrow(/No document found for query.*/);
+    });
+  });
+
+  describe('resetPassword', () => {
+    it('should reset password for an user', async () => {
+      const token = 'foo';
+      user.recoveryToken = token;
+      user.recoveryTokenExpiredAt = new Date(Date.now() + 60 * 60 * 1000);
+      await new userModel(user).save();
+      await userService.resetPassword(user.email, token, 'foo');
+      const response = await userModel.findById(user._id);
+      expect(response.recoveryToken).toBeUndefined();
+      expect(response.recoveryTokenExpiredAt).toBeUndefined();
+    });
+
+    it('should fail to reset password for an user if there is no token, the token is wrong, there is no token expiration or the token has expired', async () => {
+      const token = 'foo';
+      user.recoveryTokenExpiredAt = new Date(Date.now() + 60 * 60 * 1000);
+      await new userModel(user).save();
+      await expect(
+        userService.resetPassword(user.email, token, 'foo'),
+      ).rejects.toThrow('Invalid token');
+
+      user._id = undefined;
+      user.recoveryToken = 'bar';
+      await new userModel(user).save();
+      await expect(
+        userService.resetPassword(user.email, token, 'foo'),
+      ).rejects.toThrow('Invalid token');
+
+      user._id = undefined;
+      user.recoveryToken = token;
+      user.recoveryTokenExpiredAt = undefined;
+      await new userModel(user).save();
+      await expect(
+        userService.resetPassword(user.email, token, 'foo'),
+      ).rejects.toThrow('Invalid token');
+
+      user._id = undefined;
+      user.recoveryToken = token;
+      user.recoveryTokenExpiredAt = new Date(Date.now() - 60 * 60 * 1000);
+      await new userModel(user).save();
+      await expect(
+        userService.resetPassword(user.email, token, 'foo'),
+      ).rejects.toThrow('Invalid token');
     });
   });
 });

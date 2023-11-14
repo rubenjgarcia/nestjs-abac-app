@@ -282,5 +282,124 @@ describe('Auth e2e', () => {
           .expect(200);
       });
     });
+
+    describe('POST /auth/recover-password', () => {
+      it('should be able to recover password', async () => {
+        const unit = await e2eUtils.getUnit();
+        const user = {
+          email: 'foo@example.com',
+          password: await e2eUtils.createPasswordHash('bar'),
+          unit,
+        };
+        const responseUser = await new userModel(user).save();
+
+        await request(app.getHttpServer())
+          .post('/auth/recover-password')
+          .send({ email: responseUser.email })
+          .expect(200);
+      });
+
+      it('should be respond with 200 even there is no user', async () => {
+        await request(app.getHttpServer())
+          .post('/auth/recover-password')
+          .send({ email: 'my@email.com' })
+          .expect(200);
+      });
+
+      it('should fail is the email is not given', async () => {
+        const unit = await e2eUtils.getUnit();
+        const user = {
+          email: 'foo@example.com',
+          password: await e2eUtils.createPasswordHash('bar'),
+          unit,
+        };
+        await new userModel(user).save();
+
+        await request(app.getHttpServer())
+          .post('/auth/recover-password')
+          .send({})
+          .expect(400);
+      });
+    });
+
+    describe('POST /auth/reset-password', () => {
+      it('should be able to reset password', async () => {
+        const token = 'foo';
+        const unit = await e2eUtils.getUnit();
+        const user = {
+          email: 'foo@example.com',
+          password: await e2eUtils.createPasswordHash('bar'),
+          unit,
+          recoveryToken: token,
+          recoveryTokenExpiredAt: new Date(Date.now() + 60 * 60 * 1000),
+        };
+        const responseUser = await new userModel(user).save();
+
+        await request(app.getHttpServer())
+          .post('/auth/reset-password')
+          .send({ email: responseUser.email, token, newPassword: 'foo' })
+          .expect(200);
+      });
+
+      it('should fail is the email, token or new password is not given', async () => {
+        const token = 'foo';
+        const unit = await e2eUtils.getUnit();
+        const user = {
+          email: 'foo@example.com',
+          password: await e2eUtils.createPasswordHash('bar'),
+          unit,
+          recoveryToken: token,
+          recoveryTokenExpiredAt: new Date(Date.now() + 60 * 60 * 1000),
+        };
+        const responseUser = await new userModel(user).save();
+
+        await request(app.getHttpServer())
+          .post('/auth/reset-password')
+          .send({ token, newPassword: 'foo' })
+          .expect(400);
+
+        await request(app.getHttpServer())
+          .post('/auth/reset-password')
+          .send({ email: responseUser.email, newPassword: 'foo' })
+          .expect(400);
+
+        await request(app.getHttpServer())
+          .post('/auth/reset-password')
+          .send({ email: responseUser.email, token })
+          .expect(400);
+      });
+
+      it('should fail to reset password if the token is wrong or the token has expired', async () => {
+        const token = 'foo';
+        const unit = await e2eUtils.getUnit();
+        const user = {
+          email: 'foo@example.com',
+          password: await e2eUtils.createPasswordHash('bar'),
+          unit,
+          recoveryToken: token,
+          recoveryTokenExpiredAt: new Date(Date.now() + 60 * 60 * 1000),
+        };
+        const responseUser = await new userModel(user).save();
+
+        await request(app.getHttpServer())
+          .post('/auth/reset-password')
+          .send({ email: responseUser.email, token: 'bar', newPassword: 'foo' })
+          .expect(400);
+
+        const user2 = {
+          email: 'foo2@example.com',
+          password: await e2eUtils.createPasswordHash('bar'),
+          unit,
+          recoveryToken: token,
+          recoveryTokenExpiredAt: new Date(Date.now() - 60 * 60 * 1000),
+        };
+        const responseUser2 = await new userModel(user2).save();
+
+        await request(app.getHttpServer())
+          .post('/auth/reset-password')
+          .send({ email: responseUser2.email, token, newPassword: 'foo' })
+          .expect(400);
+      });
+    });
   });
 });

@@ -9,3 +9,17 @@ export class UserCreatedEvent implements IEvent<UserDocument> {
 
   constructor(readonly payload: UserDocument) {}
 }
+
+export class UserRecoverPasswordEventDto {
+  email: string;
+  token: string;
+}
+
+export class UserRecoverPasswordEvent
+  implements IEvent<UserRecoverPasswordEventDto>
+{
+  readonly scope = UserEventsScope;
+  readonly name = 'recoverPassword';
+
+  constructor(readonly payload: UserRecoverPasswordEventDto) {}
+}

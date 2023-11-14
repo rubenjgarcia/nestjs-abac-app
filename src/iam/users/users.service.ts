@@ -234,4 +234,55 @@ export class UserService extends CrudService<UserDocument> {
       },
     );
   }
+
+  async findOneByEmail(email: string): Promise<User> {
+    const user = await this.model
+      .findOne({ email })
+      .select({ password: false });
+
+    return user;
+  }
+
+  async updateRecoveryToken(email: string, token: string): Promise<void> {
+    const recoveryTokenTime = await this.config.get<number>(
+      'RECOVERY_TOKEN_TIME',
+      60 * 60 * 24,
+    );
+    const recoveryTokenExpiredAt = new Date(
+      new Date().getTime() + recoveryTokenTime * 1000,
+    );
+    await this.model
+      .findOneAndUpdate(
+        { email },
+        {
+          recoveryToken: token,
+          recoveryTokenExpiredAt,
+        },
+      )
+      .orFail();
+  }
+
+  async resetPassword(
+    email: string,
+    token: string,
+    newPassword: string,
+  ): Promise<void> {
+    const user = await this.model.findOne({ email, recoveryToken: token });
+    if (
+      !user ||
+      !user.recoveryTokenExpiredAt ||
+      user.recoveryTokenExpiredAt < new Date()
+    ) {
+      throw new BadRequestException('Invalid token');
+    }
+
+    const hash = await bcrypt.hash(newPassword, 10);
+    await this.model.findOneAndUpdate(
+      { email },
+      {
+        password: hash,
+        $unset: { recoveryToken: 1, recoveryTokenExpiredAt: 1 },
+      },
+    );
+  }
 }

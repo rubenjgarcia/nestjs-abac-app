@@ -1,3 +1,4 @@
+import * as crypto from 'crypto';
 import {
   ForbiddenException,
   Injectable,
@@ -9,6 +10,10 @@ import { UserService } from '../users/users.service';
 import { User } from '../users/users.schema';
 import { Role } from '../roles/roles.schema';
 import { TwoFAService } from './2fa.service';
+import { RecoverPasswordDto } from './dtos/recover-password';
+import { ResetPasswordDto } from './dtos/reset-password';
+import { EventsService } from 'src/framework/events/events';
+import { UserRecoverPasswordEvent } from '../users/user.events';
 
 @Injectable()
 export class AuthService {
@@ -16,6 +21,7 @@ export class AuthService {
     private readonly usersService: UserService,
     private readonly jwtService: JwtService,
     private readonly twoFAService: TwoFAService,
+    private readonly eventsService: EventsService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<User> {
@@ -98,6 +104,34 @@ export class AuthService {
       user.email,
       oldPassword,
       newPassword,
+    );
+  }
+
+  async recoverPassword(recoverPasswordDto: RecoverPasswordDto): Promise<void> {
+    const user = await this.usersService.findOneByEmail(
+      recoverPasswordDto.email,
+    );
+
+    if (!user) {
+      return;
+    }
+
+    const token = crypto.randomUUID();
+    await this.usersService.updateRecoveryToken(
+      recoverPasswordDto.email,
+      token,
+    );
+
+    await this.eventsService.emit(
+      new UserRecoverPasswordEvent({ email: recoverPasswordDto.email, token }),
+    );
+  }
+
+  async resetPassword(resetPasswordDto: ResetPasswordDto): Promise<void> {
+    await this.usersService.resetPassword(
+      resetPasswordDto.email,
+      resetPasswordDto.token,
+      resetPasswordDto.newPassword,
     );
   }
 }

@@ -30,6 +30,12 @@ export class User implements WithPolicies, Entity {
   @Prop()
   isTwoFactorAuthenticationEnabled?: boolean;
 
+  @Prop()
+  recoveryToken?: string;
+
+  @Prop()
+  recoveryTokenExpiredAt?: Date;
+
   @Prop({
     type: [Types.ObjectId],
     ref: Policy.name,

@@ -16,6 +16,8 @@ import { Validate2FADto } from './dtos/validate-2fa';
 import Jwt2FAGuard from './guards/jwt-2fa-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { ChangePasswordDto } from './dtos/change-password';
+import { ResetPasswordDto } from './dtos/reset-password';
+import { RecoverPasswordDto } from './dtos/recover-password';
 
 @Controller(['auth'])
 export class AuthController {
@@ -57,5 +59,23 @@ export class AuthController {
       changePasswordDto.oldPassword,
       changePasswordDto.newPassword,
     );
+  }
+
+  @Public()
+  @HttpCode(200)
+  @Post('recover-password')
+  async recoverPassword(
+    @Body() recoverPasswordDto: RecoverPasswordDto,
+  ): Promise<void> {
+    return this.authService.recoverPassword(recoverPasswordDto);
+  }
+
+  @Public()
+  @HttpCode(200)
+  @Post('reset-password')
+  async resetPassword(
+    @Body() resetPasswordDto: ResetPasswordDto,
+  ): Promise<void> {
+    return this.authService.resetPassword(resetPasswordDto);
   }
 }

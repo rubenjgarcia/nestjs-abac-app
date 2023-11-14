@@ -21,6 +21,7 @@ import { RolesModule } from '../roles/roles.module';
 import { PoliciesModule } from '../policies/policies.module';
 import { Jwt2FAStrategy } from './strategies/jwt-2fa.strategy';
 import { TwoFAService } from './2fa.service';
+import { EventsService } from 'src/framework/events/events';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { TwoFAService } from './2fa.service';
     LocalStrategy,
     UserService,
     TwoFAService,
+    EventsService,
   ],
   exports: [AuthService],
 })
