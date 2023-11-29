@@ -142,12 +142,12 @@ export class UserService extends CrudService<UserDocument> {
       .accessibleBy(ability, AddGroupToUser)
       .findOneAndUpdate(
         { _id: new Types.ObjectId(id) },
-        { $addToSet: { groups: group } },
+        { $addToSet: { groups: group._id } },
       )
       .orFail();
     return await this.model
       .findOne({ _id: new Types.ObjectId(id) })
-      .populate('groups', { policies: false })
+      .populate({ path: 'groups', select: '-policies' })
       .select({
         policies: false,
       });

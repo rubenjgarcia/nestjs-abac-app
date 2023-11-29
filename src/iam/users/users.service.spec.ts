@@ -572,7 +572,7 @@ describe('UserService', () => {
       const savedPolicy = await new policyModel(policy).save();
       await new userModel({
         ...user,
-        policies: [savedPolicy],
+        policies: [savedPolicy._id],
         unit,
       }).save();
       const responseUser = await userService.findOneWithPolicies(user.email);
@@ -598,13 +598,13 @@ describe('UserService', () => {
       const savedPolicy = await new policyModel(policy).save();
       const savedGroup = await new groupModel({
         name: 'FooGroup',
-        policies: [savedPolicy],
+        policies: [savedPolicy._id],
         unit,
       }).save();
       await new userModel({
         ...user,
-        policies: [savedPolicy],
-        groups: [savedGroup],
+        policies: [savedPolicy._id],
+        groups: [savedGroup._id],
         unit,
       }).save();
 
@@ -636,13 +636,13 @@ describe('UserService', () => {
       const savedPolicy = await new policyModel(policy).save();
       const savedRole = await new roleModel({
         name: 'FooRole',
-        policies: [savedPolicy],
+        policies: [savedPolicy._id],
         unit,
       }).save();
       await new userModel({
         ...user,
-        policies: [savedPolicy],
-        roles: [savedRole],
+        policies: [savedPolicy._id],
+        roles: [savedRole._id],
         unit,
       }).save();
 
@@ -1171,7 +1171,7 @@ describe('UserService', () => {
       const savedPolicy = await new policyModel(policy).save();
       const groupResponse = await new groupModel({
         name: 'FooGroup',
-        policies: [savedPolicy],
+        policies: [savedPolicy._id],
         unit,
       }).save();
       const userResponse = await userService.addGroupToUser(

@@ -662,7 +662,7 @@ describe('RoleService', () => {
         email: 'foo@example.com',
         password: 'foo',
         unit,
-        roles: [responseRole],
+        roles: [responseRole._id],
       }).save();
 
       await roleService.removeRoleFromUser(
